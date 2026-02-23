@@ -295,7 +295,8 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    // Reduced zoom sensitivity - smaller delta for smoother zooming
+    const delta = e.deltaY > 0 ? 0.95 : 1.05;
     setZoom(prev => Math.max(0.5, Math.min(2, prev * delta)));
   }, []);
 
@@ -548,7 +549,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   return (
     <div
       ref={containerRef}
-      className="w-full h-full relative overflow-hidden"
+      className="w-full h-full max-w-full max-h-full relative overflow-hidden mx-auto"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
