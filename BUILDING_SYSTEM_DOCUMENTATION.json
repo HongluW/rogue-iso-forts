@@ -1,0 +1,433 @@
+{
+  "version": "1.0",
+  "description": "Technical documentation of the isometric building system logic from IsoCity and IsoCoaster games",
+  "lastUpdated": "2025-02-18",
+  
+  "coreConcepts": {
+    "gridSystem": {
+      "description": "Isometric tile-based grid system",
+      "details": {
+        "tileSize": {
+          "width": "TILE_WIDTH constant (typically 64px)",
+          "height": "TILE_HEIGHT constant (typically 32px)",
+          "note": "Isometric projection: screenX = (x - y) * (TILE_WIDTH / 2), screenY = (x + y) * (TILE_HEIGHT / 2)"
+        },
+        "coordinateSystem": {
+          "gridToScreen": "Converts grid coordinates (x, y) to screen coordinates using isometric math",
+          "screenToGrid": "Inverse conversion from screen click position to grid tile",
+          "depthSorting": "Tiles sorted by (x + y) sum for correct rendering order"
+        },
+        "gridStructure": {
+          "type": "2D array: Tile[][]",
+          "access": "grid[y][x] - note Y comes first (row-major)",
+          "bounds": "0 <= x < gridSize, 0 <= y < gridSize"
+        }
+      }
+    },
+    
+    "tileStructure": {
+      "description": "Each tile contains building, zone, and metadata",
+      "structure": {
+        "building": {
+          "type": "BuildingType enum (e.g., 'house_small', 'road', 'water')",
+          "constructionProgress": "0-100, buildings under construction don't function",
+          "powered": "boolean - requires power service coverage",
+          "watered": "boolean - requires water service coverage",
+          "population": "number - for residential buildings",
+          "jobs": "number - for commercial/industrial buildings",
+          "age": "number - building age in ticks",
+          "flipped": "boolean - for waterfront buildings to face water",
+          "onFire": "boolean - fire state",
+          "abandoned": "boolean - abandoned state",
+          "bridgeType": "optional - for bridge tiles",
+          "bridgeOrientation": "optional - 'ns' (north-south) or 'ew' (east-west)",
+          "bridgeTrackType": "optional - 'road' or 'rail' for bridge type"
+        },
+        "zone": {
+          "type": "ZoneType: 'none' | 'residential' | 'commercial' | 'industrial'",
+          "purpose": "Zones allow buildings to grow automatically based on demand",
+          "note": "Service buildings and parks use 'none' zone"
+        },
+        "terrain": {
+          "type": "'land' | 'water'",
+          "purpose": "Base terrain type (for coaster game)"
+        },
+        "pollution": "number - pollution level at this tile",
+        "landValue": "number - land value affects building evolution",
+        "hasRailOverlay": "boolean - for combined road+rail tiles"
+      }
+    },
+    
+    "buildingPlacement": {
+      "description": "Logic for placing buildings on the grid",
+      "validation": {
+        "boundsCheck": "x >= 0 && x < gridSize && y >= 0 && y < gridSize",
+        "waterCheck": "Cannot place most buildings on water (except bridges, water-specific buildings)",
+        "existingBuildingCheck": "Cannot place on existing buildings (except roads/rails can extend)",
+        "multiTileCheck": "For multi-tile buildings, all footprint tiles must be valid"
+      },
+      "placementRules": {
+        "singleTile": {
+          "description": "1x1 buildings placed directly",
+          "allowedOn": ["'grass'", "'tree'", "'road'", "'rail'"],
+          "note": "Roads and rails can be placed on each other to create combined tiles"
+        },
+        "multiTile": {
+          "description": "Buildings that span multiple tiles (2x2, 3x3, 4x4)",
+          "footprint": {
+            "origin": "Building placed at origin tile (x, y)",
+            "footprintTiles": "Other tiles marked as 'empty' type with footprint marker",
+            "validation": "All tiles in footprint must be valid before placement"
+          },
+          "sizes": {
+            "2x2": ["power_plant", "hospital", "school", "mansion", "apartment_low", "office_low", "warehouse"],
+            "3x3": ["stadium", "museum", "university", "park_large", "mall"],
+            "4x4": ["airport", "amusement_park"]
+          }
+        },
+        "zones": {
+          "description": "Zones allow automatic building growth",
+          "placement": "Zone tool places zone type, buildings grow automatically",
+          "evolution": "Buildings evolve based on demand, services, and land value"
+        }
+      }
+    },
+    
+    "constructionSystem": {
+      "description": "Building construction progress and requirements",
+      "constructionProgress": {
+        "range": "0-100 percentage",
+        "initial": "New buildings start at 0%",
+        "speed": "Varies by building size: baseSpeed / sqrt(area) / 1.3",
+        "requirements": {
+          "power": "Most buildings require power to progress (except starter buildings)",
+          "water": "Most buildings require water to progress (except starter buildings)",
+          "starterBuildings": ["house_small", "shop_small", "factory_small (farms)"]
+        },
+        "completion": "At 100%, building becomes functional and generates population/jobs"
+      },
+      "constructionStates": {
+        "0-100": "Under construction - no population/jobs generated",
+        "100": "Complete - building is functional"
+      }
+    },
+    
+    "serviceSystem": {
+      "description": "Service coverage for power, water, police, fire, health",
+      "serviceTypes": {
+        "power": {
+          "sources": ["power_plant"],
+          "range": "Configurable per building type",
+          "propagation": "BFS from service buildings",
+          "required": "Most buildings need power to function"
+        },
+        "water": {
+          "sources": ["water_tower", "water_pump"],
+          "range": "Configurable per building type",
+          "propagation": "BFS from service buildings",
+          "required": "Most buildings need water to function"
+        },
+        "police": {
+          "sources": ["police_station"],
+          "effect": "Reduces crime",
+          "range": "Configurable"
+        },
+        "fire": {
+          "sources": ["fire_station"],
+          "effect": "Prevents/extinguishes fires",
+          "range": "Configurable"
+        },
+        "health": {
+          "sources": ["hospital", "clinic"],
+          "effect": "Improves population health",
+          "range": "Configurable"
+        }
+      },
+      "coverageCalculation": {
+        "method": "Breadth-first search from service buildings",
+        "range": "Each service building has a range (e.g., 8 tiles)",
+        "update": "Recalculated each simulation tick",
+        "storage": "Stored in ServiceCoverage object: { power: boolean[][], water: boolean[][], ... }"
+      }
+    },
+    
+    "buildingEvolution": {
+      "description": "How buildings evolve and upgrade over time",
+      "factors": {
+        "demand": {
+          "residential": "Based on jobs available",
+          "commercial": "Based on population",
+          "industrial": "Based on commercial demand"
+        },
+        "services": "Power, water, police, fire, health coverage",
+        "landValue": "Higher land value = better buildings",
+        "age": "Buildings age over time",
+        "abandonment": "Buildings can become abandoned if conditions are poor"
+      },
+      "evolutionChain": {
+        "residential": ["house_small", "house_medium", "house_large", "apartment_low", "apartment_high"],
+        "commercial": ["shop_small", "shop_medium", "shop_large", "office_low", "office_high", "mall"],
+        "industrial": ["factory_small", "factory_medium", "factory_large", "warehouse"]
+      },
+      "abandonment": {
+        "triggers": ["No power/water", "High pollution", "Low demand", "Old age"],
+        "recovery": "Can recover if conditions improve"
+      }
+    },
+    
+    "coasterTrackSystem": {
+      "description": "Roller coaster track building system (IsoCoaster)",
+      "trackPieces": {
+        "types": ["straight", "turn_left", "turn_right", "slope_up", "slope_down", "loop", "station"],
+        "properties": {
+          "direction": "TrackDirection: 'north' | 'south' | 'east' | 'west'",
+          "height": "TrackHeight: number (0-255)",
+          "bankAngle": "number - banking for turns",
+          "chainLift": "boolean - chain lift section",
+          "boosted": "boolean - launch section"
+        }
+      },
+      "trackPlacement": {
+        "method": "Drag-to-place system",
+        "validation": {
+          "connection": "Tracks must connect to existing track or station",
+          "height": "Height must be valid for piece type",
+          "direction": "Direction must match previous piece"
+        },
+        "coasterId": "All connected tracks share same coasterTrackId",
+        "merging": "Separate track segments merge when connected"
+      },
+      "coasterObject": {
+        "structure": {
+          "id": "Unique coaster identifier",
+          "type": "CoasterType (e.g., 'steel_sit_down', 'wooden_classic')",
+          "track": "Array of TrackPiece objects",
+          "trackTiles": "Array of {x, y} positions",
+          "stationTileX/Y": "Station location",
+          "trains": "Array of train objects",
+          "operating": "boolean - is coaster running",
+          "broken": "boolean - needs maintenance",
+          "excitement": "number - ride rating",
+          "intensity": "number - ride intensity",
+          "nausea": "number - ride nausea factor"
+        }
+      },
+      "trackCollection": {
+        "method": "BFS from station to collect all connected tracks",
+        "ordering": "Tracks ordered by connection path",
+        "validation": "Track must form complete loop or have valid start/end"
+      }
+    },
+    
+    "roadAndRailSystem": {
+      "description": "Road and rail network system",
+      "roadPlacement": {
+        "method": "Click or drag to place",
+        "merging": "Roads automatically merge at intersections",
+        "analysis": "analyzeMergedRoad() determines road type and connections",
+        "traffic": "Cars spawn and pathfind on road network"
+      },
+      "railPlacement": {
+        "method": "Similar to roads",
+        "trains": "Trains spawn and follow rail network",
+        "stations": "Rail stations are 2x2 multi-tile buildings",
+        "crossings": "Railroad crossings with gates and signals"
+      },
+      "combinedTiles": {
+        "description": "Road and rail can share same tile",
+        "implementation": "hasRailOverlay flag on road tiles",
+        "rendering": "Rail drawn as overlay on road"
+      },
+      "bridges": {
+        "types": ["small", "medium", "large", "suspension"],
+        "creation": "Auto-created when dragging road/rail across water",
+        "orientation": "'ns' (north-south) or 'ew' (east-west)",
+        "trackType": "'road' or 'rail'"
+      }
+    },
+    
+    "simulationLoop": {
+      "description": "Game state update cycle",
+      "tickInterval": {
+        "speed0": "Paused",
+        "speed1": "500ms per tick (desktop), 750ms (mobile)",
+        "speed2": "300ms per tick (desktop), 450ms (mobile)",
+        "speed3": "200ms per tick (desktop), 300ms (mobile)"
+      },
+      "tickProcess": {
+        "1": "Calculate service coverage",
+        "2": "Update all tiles (construction, evolution, abandonment)",
+        "3": "Calculate stats (population, jobs, money, happiness)",
+        "4": "Update time (tick -> day -> month -> year)",
+        "5": "Generate advisor messages",
+        "6": "Update notifications"
+      },
+      "performance": {
+        "gridUpdates": "Shallow clone rows, deep clone only modified tiles",
+        "reactSync": "State updates throttled to 500ms (canvas reads from refs)",
+        "caching": "Service coverage cached, invalidated on grid changes"
+      }
+    },
+    
+    "renderingSystem": {
+      "description": "Isometric canvas rendering",
+      "layers": {
+        "1": "Main canvas - base tiles, buildings, roads, rails",
+        "2": "Cars canvas - vehicles",
+        "3": "Buildings canvas - buildings above vehicles",
+        "4": "Air canvas - aircraft, fireworks",
+        "5": "Lighting canvas - day/night overlay"
+      },
+      "renderingProcess": {
+        "1": "Calculate visible tile range (viewport culling)",
+        "2": "Build render queues sorted by depth (x + y)",
+        "3": "Draw base tiles (grass, water, grey bases)",
+        "4": "Draw infrastructure (roads, rails, bridges)",
+        "5": "Draw buildings (with sprites from sprite sheets)",
+        "6": "Draw vehicles/entities",
+        "7": "Draw effects",
+        "8": "Apply lighting overlay"
+      },
+      "spriteSystem": {
+        "spriteSheets": "PNG/WebP images with multiple sprites",
+        "spritePacks": "Configuration defining sprite layout and mappings",
+        "buildingToSprite": "Maps building types to sprite keys",
+        "offsets": "Per-sprite vertical/horizontal offsets for alignment",
+        "variants": "Construction, abandoned, dense, modern variants"
+      },
+      "performance": {
+        "viewportCulling": "Only render visible tiles",
+        "depthSorting": "Pre-sort by depth before rendering",
+        "spriteCaching": "Sprites cached in memory",
+        "renderQueues": "Reused arrays to reduce GC pressure",
+        "zoomLOD": "Skip small elements when zoomed out"
+      }
+    },
+    
+    "stateManagement": {
+      "description": "Game state structure and management",
+      "gameState": {
+        "grid": "Tile[][] - the game grid",
+        "gridSize": "number - grid dimensions",
+        "selectedTool": "Tool enum",
+        "speed": "0 | 1 | 2 | 3",
+        "stats": {
+          "population": "number",
+          "money": "number",
+          "income": "number",
+          "expenses": "number",
+          "happiness": "number"
+        },
+        "budget": "Budget object with funding levels",
+        "services": "ServiceCoverage object",
+        "tick": "number - current tick",
+        "day": "number - current day (1-30)",
+        "month": "number - current month (1-12)",
+        "year": "number - current year",
+        "hour": "number - visual hour for day/night (0-23)"
+      },
+      "contextPattern": {
+        "provider": "React Context Provider manages state",
+        "refs": "latestStateRef for real-time canvas access",
+        "throttling": "React state updates throttled, canvas reads from refs"
+      },
+      "saveSystem": {
+        "compression": "lz-string UTF16 compression",
+        "storage": "localStorage with keys",
+        "autosave": "Every 5 seconds (city) or 30 seconds (coaster)",
+        "format": "Compressed JSON string"
+      }
+    },
+    
+    "pathfinding": {
+      "description": "Pathfinding systems for vehicles and entities",
+      "roadPathfinding": {
+        "algorithm": "BFS (Breadth-First Search)",
+        "optimization": "Pre-allocated typed arrays (Int16Array, Uint8Array)",
+        "numericKeys": "Use y * gridSize + x instead of string keys",
+        "maxDistance": "Limited search distance for performance"
+      },
+      "vehicleSystems": {
+        "cars": "Pathfind on road network, avoid collisions",
+        "buses": "Follow bus routes",
+        "trains": "Follow rail network, stop at stations",
+        "pedestrians": "Pathfind to destinations on paths/roads",
+        "aircraft": "Fly between airports"
+      }
+    },
+    
+    "multiTileBuildingLogic": {
+      "description": "How multi-tile buildings work",
+      "footprintSystem": {
+        "origin": "Building type placed at origin (x, y)",
+        "footprintTiles": "Other tiles marked as 'empty' with special marker",
+        "validation": "All footprint tiles validated before placement",
+        "rendering": "Only origin tile renders building sprite, footprint tiles are invisible"
+      },
+      "metadata": {
+        "isPartOfMultiTileBuilding": "Helper function checks if tile is part of building",
+        "findBuildingOrigin": "Finds origin tile from any footprint tile",
+        "caching": "Metadata pre-computed for O(1) lookups"
+      }
+    },
+    
+    "zoneSystem": {
+      "description": "Zoning system for automatic building growth",
+      "zoneTypes": {
+        "residential": "Grows houses and apartments",
+        "commercial": "Grows shops and offices",
+        "industrial": "Grows factories and warehouses",
+        "none": "No zone (for service buildings, parks)"
+      },
+      "growthLogic": {
+        "demand": "Based on population/jobs ratios",
+        "services": "Requires power and water",
+        "landValue": "Higher value = better buildings",
+        "evolution": "Buildings evolve from small to large over time"
+      },
+      "abandonment": {
+        "triggers": ["No utilities", "High pollution", "Low demand"],
+        "recovery": "Can recover if conditions improve"
+      }
+    }
+  },
+  
+  "keyAlgorithms": {
+    "serviceCoverage": {
+      "description": "BFS from service buildings to calculate coverage",
+      "pseudocode": "For each service building: BFS outward up to range, mark tiles as covered"
+    },
+    "buildingEvolution": {
+      "description": "Determines if building should evolve/upgrade",
+      "factors": ["demand", "services", "landValue", "age", "pollution"]
+    },
+    "trackCollection": {
+      "description": "Collects all connected track pieces for a coaster",
+      "method": "BFS from station, following track connections"
+    },
+    "roadMerging": {
+      "description": "Analyzes road connections to determine road type",
+      "output": "Road type (straight, turn, intersection, etc.)"
+    }
+  },
+  
+  "performanceOptimizations": {
+    "gridUpdates": "Shallow clone rows, deep clone only modified tiles",
+    "serviceCaching": "Service coverage cached until grid changes",
+    "viewportCulling": "Only process visible tiles",
+    "renderQueues": "Pre-allocated arrays reused across frames",
+    "typedArrays": "Use Int16Array, Uint8Array for pathfinding",
+    "refsVsState": "Canvas reads from refs (real-time), React reads from state (throttled)"
+  },
+  
+  "notes": {
+    "important": [
+      "Grid access is grid[y][x] - Y comes first (row-major order)",
+      "Isometric depth sorting uses (x + y) sum",
+      "Multi-tile buildings use footprint system with 'empty' type markers",
+      "Construction requires power/water except for starter buildings",
+      "Service coverage uses BFS and is cached for performance",
+      "State updates are throttled but canvas reads from refs for real-time updates"
+    ]
+  }
+}
