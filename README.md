@@ -1,34 +1,16 @@
-# IsoCity & IsoCoaster
+# IsoForts
 
-Open-source isometric simulation games built with **Next.js**, **TypeScript**, and **HTML5 Canvas**.
-
-<table>
-<tr>
-<td width="50%" align="center"><strong>IsoCity</strong></td>
-<td width="50%" align="center"><strong>IsoCoaster</strong></td>
-</tr>
-<tr>
-<td><img src="public/readme-image.png" width="100%"></td>
-<td><img src="public/readme-coaster.png" width="100%"></td>
-</tr>
-<tr>
-<td align="center">City builder with trains, planes, cars, and pedestrians<br><a href="https://iso-city.com">iso-city.com</a></td>
-<td align="center">Build theme parks with roller coasters, rides, and guests<br><a href="https://iso-coaster.com">iso-coaster.com</a></td>
-</tr>
-</table>
+An isometric fort-building game built with **Next.js**, **TypeScript**, and **HTML5 Canvas**.
 
 Made with [Cursor](https://cursor.com)
 
 ## Features
 
--   **Isometric Rendering Engine**: Custom-built rendering system using HTML5 Canvas (`CanvasIsometricGrid`) capable of handling complex depth sorting, layer management, and both image and drawn sprites.
--   **Dynamic Simulation**:
-    -   **Traffic System**: Autonomous vehicles including cars, trains, and aircraft (planes/seaplanes).
-    -   **Pedestrian System**: Pathfinding and crowd simulation for city inhabitants.
-    -   **Economy & Resources**: Resource management, zoning (Residential, Commercial, Industrial), and city growth logic.
--   **Interactive Grid**: Tile-based placement system for buildings, roads, parks, and utilities.
--   **State Management**: Save/Load functionality for multiple cities.
--   **Responsive Design**: Mobile-friendly interface with specialized touch controls and toolbars.
+-   **Isometric Rendering Engine**: Custom-built rendering system using HTML5 Canvas with depth sorting and sprite rendering.
+-   **Interactive Grid**: Tile-based placement system for terrain and buildings.
+-   **State Management**: Save/Load functionality for multiple forts.
+-   **Responsive Design**: Mobile-friendly interface with touch controls.
+-   **Keyboard Controls**: WASD for camera movement, right-click drag for panning.
 
 ## Tech Stack
 
@@ -48,8 +30,8 @@ Made with [Cursor](https://cursor.com)
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/amilich/isometric-city.git
-    cd isometric-city
+    git clone https://github.com/HongluW/isometric-fort.git
+    cd isometric-fort
     ```
 
 2.  **Install dependencies:**
@@ -65,11 +47,12 @@ Made with [Cursor](https://cursor.com)
 4.  **Open the game:**
     Visit [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Contributing
+## Controls
 
-Contributions are welcome! Whether it's reporting a bug, proposing a new feature, or submitting a pull request, your input is valued.
-
-Please ensure your code follows the existing style and conventions.
+-   **WASD**: Pan the camera
+-   **Right-click drag**: Pan the camera
+-   **Left-click**: Select/place tiles
+-   **Mouse wheel**: Zoom in/out
 
 ## License
 
