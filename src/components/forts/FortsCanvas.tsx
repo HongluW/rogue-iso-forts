@@ -609,6 +609,9 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         if (selectedTool === 'zone_moat') {
           previewColor = '#2563eb'; // moat blue
           previewStroke = '#93c5fd';
+        } else if (selectedTool === 'zone_land') {
+          previewColor = '#9C7C3C'; // earth / yellowish brown
+          previewStroke = '#C4A574'; // lighter tan
         }
         
         const previewAlpha = 0.7;

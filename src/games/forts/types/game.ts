@@ -38,7 +38,7 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
   select: { name: 'Select', cost: 0, description: 'Select tiles', category: 'tools' },
   bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools' },
   zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain' },
-  zone_land: { name: 'Land', cost: 0, description: 'Place land/grass', category: 'terrain' },
+  zone_land: { name: 'Land', cost: 0, description: 'Place land (drag to draw line)', category: 'terrain' },
 };
 
 // =============================================================================
@@ -105,7 +105,7 @@ export interface GameState {
 
 export const DRAG_BUILD_TOOLS: Set<Tool> = new Set([
   'zone_moat',
-  // Future drag tools go here (e.g. walls, roads)
+  'zone_land',
 ]);
 
 export function isDragBuildTool(tool: Tool): boolean {
