@@ -6,7 +6,7 @@ import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STAT
 import { isMobile } from 'react-device-detect';
 import { hexToKey, getHexesInRadius } from './hexUtils';
 
-export const DEFAULT_GRID_SIZE = isMobile ? 15 : 20; // Smaller grid for better view
+export const DEFAULT_GRID_SIZE = isMobile ? 8 : 10; // Half the previous size
 
 // Create empty tile
 export function createEmptyTile(): Tile {

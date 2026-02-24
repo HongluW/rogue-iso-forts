@@ -58,20 +58,13 @@ export function screenToHex(
   let worldX = screenX / (dpr * zoom) - offsetX / zoom;
   let worldY = screenY / (dpr * zoom) - offsetY / zoom;
   
-  // Step 2: Reverse isometric transform (rotate and scale)
-  // Move to center, unscale Y, unrotate, move back
+  // Step 2: Reverse isometric transform (Y-axis compression only, no rotation)
+  // Move to center, unscale Y, move back
   worldX = worldX - viewCenterX;
   worldY = worldY - viewCenterY;
   
-  // Unscale Y axis (reverse 0.866 compression)
-  worldY = worldY / 0.866;
-  
-  // Unrotate (reverse -30° rotation = +30° rotation)
-  const cos30 = Math.cos(Math.PI / 6);
-  const sin30 = Math.sin(Math.PI / 6);
-  const tempX = worldX;
-  worldX = worldX * cos30 - worldY * sin30;
-  worldY = tempX * sin30 + worldY * cos30;
+  // Unscale Y axis (reverse 0.8 compression)
+  worldY = worldY / 0.8;
   
   worldX = worldX + viewCenterX;
   worldY = worldY + viewCenterY;

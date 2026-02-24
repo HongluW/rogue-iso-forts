@@ -386,13 +386,13 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       ctx.translate(offset.x / zoom, offset.y / zoom);
       
       // Apply slight tilt for fake 3D feeling (tilt backwards/away from camera)
-      // Use fixed center point for rotation (not dependent on offset)
+      // Use fixed center point for transform (not dependent on offset)
       const fixedCenterX = canvas.width / (2 * dpr * zoom);
       const fixedCenterY = canvas.height / (2 * dpr * zoom);
       ctx.translate(fixedCenterX, fixedCenterY);
-      // Rotate +30 degrees (opposite direction) to tilt backwards
-      ctx.rotate(Math.PI / 6); // Rotate +30 degrees for backward tilt
-      ctx.scale(1, 0.866); // Compress Y axis (cos(30°) = 0.866) for isometric look
+      // No rotation - just compress Y axis to create backwards tilt effect
+      // This makes the grid appear to recede into the distance
+      ctx.scale(1, 0.8); // Compress Y axis more for backwards perspective
       ctx.translate(-fixedCenterX, -fixedCenterY);
       
       ctx.imageSmoothingEnabled = false;
