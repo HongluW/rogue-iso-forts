@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
 
 export default function FortsGame({ onExit }: { onExit?: () => void }) {
-  const { state, setTool, setActivePanel, placeAtTile } = useForts();
+  const { state, setTool, setActivePanel, placeAtTile, toggleFreeBuilder } = useForts();
   const [selectedTile, setSelectedTile] = useState<HexPosition | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isMobileDevice, isSmallScreen } = useMobile();
@@ -36,12 +36,15 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
       } else if (e.key === 'b' || e.key === 'B') {
         e.preventDefault();
         setTool('bulldoze');
+      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
+        e.preventDefault();
+        toggleFreeBuilder();
       }
     };
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state.activePanel, state.selectedTool, selectedTile, setActivePanel, setTool]);
+  }, [state.activePanel, state.selectedTool, selectedTile, setActivePanel, setTool, toggleFreeBuilder]);
 
   // Mobile layout
   if (isMobile) {

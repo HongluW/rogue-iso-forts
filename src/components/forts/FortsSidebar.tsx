@@ -5,7 +5,7 @@ import { useForts } from '@/context/FortsContext';
 import { Tool, TOOL_INFO } from '@/games/forts/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Menu, LogOut } from 'lucide-react';
+import { X, Menu, LogOut, Sparkles } from 'lucide-react';
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
   tools: ['select', 'bulldoze'],
@@ -21,7 +21,7 @@ export function FortsSidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { state, setTool } = useForts();
+  const { state, setTool, freeBuilderMode, toggleFreeBuilder } = useForts();
   const { selectedTool, stats } = state;
 
   if (!isOpen) {
@@ -45,11 +45,31 @@ export function FortsSidebar({
       {/* Stats */}
       <div className="p-4 border-b border-slate-800 space-y-2">
         <div className="text-white/60 text-xs">Money</div>
-        <div className="text-white text-lg font-semibold">${stats.money.toLocaleString()}</div>
+        <div className={`text-lg font-semibold ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
+          {freeBuilderMode ? '∞ FREE' : `$${stats.money.toLocaleString()}`}
+        </div>
         <div className="text-white/60 text-xs">Population</div>
         <div className="text-white text-lg font-semibold">{stats.population.toLocaleString()}</div>
         <div className="text-white/60 text-xs">Defense</div>
         <div className="text-white text-lg font-semibold">{stats.defense.toLocaleString()}</div>
+      </div>
+      
+      {/* Free Builder Toggle */}
+      <div className="p-4 border-b border-slate-800">
+        <Button
+          onClick={toggleFreeBuilder}
+          variant={freeBuilderMode ? 'default' : 'outline'}
+          className={`w-full justify-start ${
+            freeBuilderMode 
+              ? 'bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-500' 
+              : 'border-slate-700 text-white hover:bg-slate-800'
+          }`}
+          title="Toggle Free Builder Mode (unlimited money for testing)"
+        >
+          <Sparkles className={`w-4 h-4 mr-2 ${freeBuilderMode ? 'text-white' : 'text-yellow-400'}`} />
+          <span>Free Builder</span>
+          {freeBuilderMode && <span className="ml-auto text-xs">ON</span>}
+        </Button>
       </div>
 
       {/* Tools */}
@@ -80,7 +100,7 @@ export function FortsSidebar({
                       className={`w-full justify-start text-left ${
                         isSelected ? 'bg-blue-600 hover:bg-blue-700' : ''
                       }`}
-                      disabled={toolInfo.cost > stats.money && tool !== 'select' && tool !== 'bulldoze'}
+                      disabled={!freeBuilderMode && toolInfo.cost > stats.money && tool !== 'select' && tool !== 'bulldoze'}
                     >
                       <div className="flex-1">
                         <div className="text-sm">{toolInfo.name}</div>

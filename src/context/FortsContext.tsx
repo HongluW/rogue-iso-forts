@@ -51,6 +51,8 @@ type FortsContextValue = {
   isStateReady: boolean;
   isSaving: boolean;
   addMoney: (amount: number) => void;
+  freeBuilderMode: boolean;
+  toggleFreeBuilder: () => void;
 };
 
 const FortsContext = createContext<FortsContextValue | null>(null);
@@ -80,6 +82,7 @@ export function FortsProvider({
   const [isStateReady, setIsStateReady] = useState(false);
   const [hasSavedGame, setHasSavedGame] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [freeBuilderMode, setFreeBuilderMode] = useState(false);
   const latestStateRef = useRef<GameState>(state);
   const saveInProgressRef = useRef(false);
   
@@ -218,6 +221,13 @@ export function FortsProvider({
       
       const tool = prev.selectedTool;
       const key = `${q},${r}`;
+      const toolInfo = TOOL_INFO[tool];
+      const cost = toolInfo?.cost || 0;
+      
+      // Check if we can afford it (unless free builder mode)
+      if (!freeBuilderMode && cost > 0 && prev.stats.money < cost) {
+        return prev; // Can't afford
+      }
       
       if (tool === 'bulldoze') {
         if (bulldozeTile(newGrid, prev.gridSize, q, r)) {
@@ -225,7 +235,7 @@ export function FortsProvider({
           return {
             ...prev,
             grid: newGrid,
-            stats: { ...prev.stats, ...stats },
+            stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : prev.stats.money },
           };
         }
       } else if (tool === 'zone_moat') {
@@ -243,7 +253,11 @@ export function FortsProvider({
           return {
             ...prev,
             grid: newGrid,
-            stats: { ...prev.stats, ...stats },
+            stats: { 
+              ...prev.stats, 
+              ...stats,
+              money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost),
+            },
           };
         }
       } else if (tool === 'zone_land') {
@@ -261,20 +275,32 @@ export function FortsProvider({
           return {
             ...prev,
             grid: newGrid,
-            stats: { ...prev.stats, ...stats },
+            stats: { 
+              ...prev.stats, 
+              ...stats,
+              money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost),
+            },
           };
         }
       }
       
       return prev;
     });
-  }, []);
+  }, [freeBuilderMode]);
   
   const placeMultipleTiles = useCallback((hexes: { q: number; r: number }[]) => {
     if (hexes.length === 0) return;
     
     setState(prev => {
       const tool = prev.selectedTool;
+      const toolInfo = TOOL_INFO[tool];
+      const costPerTile = toolInfo?.cost || 0;
+      const totalCost = costPerTile * hexes.length;
+      
+      // Check if we can afford it (unless free builder mode)
+      if (!freeBuilderMode && totalCost > 0 && prev.stats.money < totalCost) {
+        return prev; // Can't afford
+      }
       
       // Create new grid map
       const newGrid = new Map<string, Tile>();
@@ -324,10 +350,14 @@ export function FortsProvider({
       return {
         ...prev,
         grid: newGrid,
-        stats: { ...prev.stats, ...stats },
+        stats: { 
+          ...prev.stats, 
+          ...stats,
+          money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - totalCost),
+        },
       };
     });
-  }, []);
+  }, [freeBuilderMode]);
   
   const newGame = useCallback((name?: string, size?: number) => {
     const newState = createInitialGameState(name, size);
@@ -346,6 +376,23 @@ export function FortsProvider({
     }));
   }, []);
   
+  const toggleFreeBuilder = useCallback(() => {
+    setFreeBuilderMode(prev => {
+      const newMode = !prev;
+      if (newMode) {
+        // Enable free builder: set money to max
+        setState(prevState => ({
+          ...prevState,
+          stats: {
+            ...prevState.stats,
+            money: 999999,
+          },
+        }));
+      }
+      return newMode;
+    });
+  }, []);
+  
   const value: FortsContextValue = {
     state,
     latestStateRef,
@@ -359,6 +406,8 @@ export function FortsProvider({
     isStateReady,
     isSaving,
     addMoney,
+    freeBuilderMode,
+    toggleFreeBuilder,
   };
   
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;
