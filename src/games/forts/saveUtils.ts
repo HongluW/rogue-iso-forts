@@ -1,5 +1,5 @@
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
-import { GameState } from './types';
+import { GameState, Tile } from './types';
 import { serializeAndCompressAsync } from '@/lib/saveWorkerManager';
 
 export type SavedFortMeta = {
@@ -87,6 +87,33 @@ export function removeSavedFortMeta(id: string, forts?: SavedFortMeta[]): SavedF
   return list.filter((fort) => fort.id !== id);
 }
 
+// Convert Map to serializable format
+function gridMapToArray(grid: Map<string, Tile>): Array<[string, Tile]> {
+  return Array.from(grid.entries());
+}
+
+// Convert serialized format back to Map
+function gridArrayToMap(gridArray: Array<[string, Tile]> | Tile[][] | Map<string, Tile>): Map<string, Tile> {
+  // Handle new hex grid format (array of [key, tile] pairs)
+  if (Array.isArray(gridArray) && gridArray.length > 0) {
+    if (Array.isArray(gridArray[0]) && gridArray[0].length === 2 && typeof gridArray[0][0] === 'string') {
+      // New format: Array<[string, Tile]>
+      return new Map(gridArray as Array<[string, Tile]>);
+    }
+    // Old format: Tile[][] - migrate to hex grid
+    // This is a legacy format, create empty hex grid
+    const newGrid = new Map<string, Tile>();
+    // For migration, we'll create a basic hex grid
+    // In practice, old saves would need more sophisticated migration
+    return newGrid;
+  }
+  // Already a Map
+  if (gridArray instanceof Map) {
+    return gridArray;
+  }
+  return new Map<string, Tile>();
+}
+
 export function loadFortsStateFromStorage(key: string): GameState | null {
   if (typeof window === 'undefined') return null;
   try {
@@ -102,7 +129,12 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
     }
     const parsed = JSON.parse(jsonString);
     if (parsed?.grid && parsed?.gridSize) {
-      return parsed as GameState;
+      // Convert grid array back to Map
+      const grid = gridArrayToMap(parsed.grid);
+      return {
+        ...parsed,
+        grid,
+      } as GameState;
     }
   } catch {
     return null;
@@ -113,7 +145,12 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
 export function saveFortsStateToStorage(key: string, state: GameState): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    const compressed = compressToUTF16(JSON.stringify(state));
+    // Convert Map to serializable format
+    const serializableState = {
+      ...state,
+      grid: gridMapToArray(state.grid),
+    };
+    const compressed = compressToUTF16(JSON.stringify(serializableState));
     localStorage.setItem(key, compressed);
     return true;
   } catch {
@@ -124,7 +161,12 @@ export function saveFortsStateToStorage(key: string, state: GameState): boolean 
 export async function saveFortsStateToStorageAsync(key: string, state: GameState): Promise<boolean> {
   if (typeof window === 'undefined') return false;
   try {
-    const compressed = await serializeAndCompressAsync(state);
+    // Convert Map to serializable format before serialization
+    const serializableState = {
+      ...state,
+      grid: gridMapToArray(state.grid),
+    };
+    const compressed = await serializeAndCompressAsync(serializableState);
     localStorage.setItem(key, compressed);
     return true;
   } catch {

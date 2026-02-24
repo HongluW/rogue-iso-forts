@@ -3,6 +3,7 @@
  */
 
 import { Building, BuildingType } from './buildings';
+import { HexPosition } from '../lib/hexUtils';
 
 // =============================================================================
 // TOOL TYPES
@@ -70,14 +71,21 @@ export interface FortStats {
 }
 
 // =============================================================================
+// HEX POSITION
+// =============================================================================
+
+// Re-export HexPosition for convenience
+export type { HexPosition } from '../lib/hexUtils';
+
+// =============================================================================
 // GAME STATE
 // =============================================================================
 
 export interface GameState {
   id: string;
   fortName: string;
-  grid: Tile[][];
-  gridSize: number;
+  grid: Map<string, Tile>; // Hex grid using "q,r" as key
+  gridSize: number; // Approximate radius/size of hex grid
   selectedTool: Tool;
   activePanel: 'none' | 'budget' | 'statistics' | 'settings';
   speed: 0 | 1 | 2 | 3;

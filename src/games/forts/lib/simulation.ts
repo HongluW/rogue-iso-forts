@@ -4,8 +4,9 @@
 
 import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS } from '../types';
 import { isMobile } from 'react-device-detect';
+import { hexToKey, getHexesInRadius } from './hexUtils';
 
-export const DEFAULT_GRID_SIZE = isMobile ? 50 : 70;
+export const DEFAULT_GRID_SIZE = isMobile ? 15 : 20; // Smaller grid for better view
 
 // Create empty tile
 export function createEmptyTile(): Tile {
@@ -33,21 +34,21 @@ export function createEmptyBuilding(): Building {
 // Create initial game state
 export function createInitialGameState(fortName?: string, gridSize?: number): GameState {
   const size = gridSize || DEFAULT_GRID_SIZE;
-  const grid: Tile[][] = [];
+  const grid = new Map<string, Tile>();
   
-  for (let y = 0; y < size; y++) {
-    grid[y] = [];
-    for (let x = 0; x < size; x++) {
-      grid[y][x] = {
-        building: {
-          type: 'grass',
-          constructionProgress: 100,
-          powered: false,
-          watered: false,
-        },
-        zone: 'none',
-      };
-    }
+  // Create hex grid within radius
+  const hexes = getHexesInRadius(0, 0, size);
+  for (const hex of hexes) {
+    const key = hexToKey(hex.q, hex.r);
+    grid.set(key, {
+      building: {
+        type: 'grass',
+        constructionProgress: 100,
+        powered: false,
+        watered: false,
+      },
+      zone: 'none',
+    });
   }
   
   return {
@@ -71,21 +72,23 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     month: 1,
     year: 1000,
     hour: 12,
-    gameVersion: 1,
+    gameVersion: 2, // Increment version for hex grid
   };
 }
 
-// Place building at tile
+// Place building at hex tile
 export function placeBuilding(
-  grid: Tile[][],
+  grid: Map<string, Tile>,
   gridSize: number,
-  x: number,
-  y: number,
+  q: number,
+  r: number,
   buildingType: BuildingType
 ): boolean {
-  if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return false;
+  const key = hexToKey(q, r);
+  const tile = grid.get(key);
   
-  const tile = grid[y][x];
+  if (!tile) return false; // Hex doesn't exist
+  
   if (tile.building.type !== 'empty' && tile.building.type !== 'grass') {
     return false; // Can't place on existing buildings
   }
@@ -100,16 +103,18 @@ export function placeBuilding(
   return true;
 }
 
-// Bulldoze tile
+// Bulldoze hex tile
 export function bulldozeTile(
-  grid: Tile[][],
+  grid: Map<string, Tile>,
   gridSize: number,
-  x: number,
-  y: number
+  q: number,
+  r: number
 ): boolean {
-  if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) return false;
+  const key = hexToKey(q, r);
+  const tile = grid.get(key);
   
-  const tile = grid[y][x];
+  if (!tile) return false; // Hex doesn't exist
+  
   if (tile.building.type === 'empty' || tile.building.type === 'water') {
     return false; // Can't bulldoze empty or water
   }
@@ -125,12 +130,21 @@ export function bulldozeTile(
 }
 
 // Calculate fort stats
-export function calculateFortStats(grid: Tile[][], gridSize: number): FortStats {
-  // Simplified stats calculation - no buildings yet, so all zeros
+export function calculateFortStats(grid: Map<string, Tile>, gridSize: number): FortStats {
+  // Simplified stats calculation - iterate over hex grid
+  let population = 0;
+  let defense = 0;
+  let capacity = 0;
+  
+  for (const tile of grid.values()) {
+    // Add stats based on building type if needed
+    // For now, all zeros as no buildings have stats yet
+  }
+  
   return {
-    population: 0,
-    defense: 0,
-    capacity: 0,
+    population,
+    defense,
+    capacity,
     money: 0, // Will be set from state
     income: 0,
     expenses: 0,
@@ -139,19 +153,19 @@ export function calculateFortStats(grid: Tile[][], gridSize: number): FortStats 
 
 // Simulate tick
 export function simulateTick(state: GameState): GameState {
-  const newGrid = state.grid.map(row => row.map(tile => ({ ...tile })));
+  // Create new grid map with updated tiles
+  const newGrid = new Map<string, Tile>();
   
-  // Update construction progress
-  for (let y = 0; y < state.gridSize; y++) {
-    for (let x = 0; x < state.gridSize; x++) {
-      const tile = newGrid[y][x];
-      if (tile.building.constructionProgress < 100) {
-        tile.building.constructionProgress = Math.min(
-          100,
-          tile.building.constructionProgress + 2 // 2% per tick
-        );
-      }
+  // Update construction progress for all hexes
+  for (const [key, tile] of state.grid.entries()) {
+    const newTile = { ...tile, building: { ...tile.building } };
+    if (newTile.building.constructionProgress < 100) {
+      newTile.building.constructionProgress = Math.min(
+        100,
+        newTile.building.constructionProgress + 2 // 2% per tick
+      );
     }
+    newGrid.set(key, newTile);
   }
   
   // Calculate stats

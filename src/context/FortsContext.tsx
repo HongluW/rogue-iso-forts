@@ -207,13 +207,19 @@ export function FortsProvider({
     setState(prev => ({ ...prev, activePanel: panel }));
   }, []);
   
-  const placeAtTile = useCallback((x: number, y: number) => {
+  const placeAtTile = useCallback((q: number, r: number) => {
     setState(prev => {
-      const newGrid = prev.grid.map(row => row.map(tile => ({ ...tile })));
+      // Create new grid map
+      const newGrid = new Map<string, Tile>();
+      for (const [key, tile] of prev.grid.entries()) {
+        newGrid.set(key, { ...tile, building: { ...tile.building } });
+      }
+      
       const tool = prev.selectedTool;
+      const key = `${q},${r}`;
       
       if (tool === 'bulldoze') {
-        if (bulldozeTile(newGrid, prev.gridSize, x, y)) {
+        if (bulldozeTile(newGrid, prev.gridSize, q, r)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return {
             ...prev,
@@ -223,36 +229,40 @@ export function FortsProvider({
         }
       } else if (tool === 'zone_water') {
         // Place water
-        const tile = newGrid[y][x];
-        tile.building = {
-          type: 'water',
-          constructionProgress: 100,
-          powered: false,
-          watered: false,
-        };
-        tile.zone = 'water';
-        const stats = calculateFortStats(newGrid, prev.gridSize);
-        return {
-          ...prev,
-          grid: newGrid,
-          stats: { ...prev.stats, ...stats },
-        };
+        const tile = newGrid.get(key);
+        if (tile) {
+          tile.building = {
+            type: 'water',
+            constructionProgress: 100,
+            powered: false,
+            watered: false,
+          };
+          tile.zone = 'water';
+          const stats = calculateFortStats(newGrid, prev.gridSize);
+          return {
+            ...prev,
+            grid: newGrid,
+            stats: { ...prev.stats, ...stats },
+          };
+        }
       } else if (tool === 'zone_land') {
         // Place grass/land
-        const tile = newGrid[y][x];
-        tile.building = {
-          type: 'grass',
-          constructionProgress: 100,
-          powered: false,
-          watered: false,
-        };
-        tile.zone = 'land';
-        const stats = calculateFortStats(newGrid, prev.gridSize);
-        return {
-          ...prev,
-          grid: newGrid,
-          stats: { ...prev.stats, ...stats },
-        };
+        const tile = newGrid.get(key);
+        if (tile) {
+          tile.building = {
+            type: 'grass',
+            constructionProgress: 100,
+            powered: false,
+            watered: false,
+          };
+          tile.zone = 'land';
+          const stats = calculateFortStats(newGrid, prev.gridSize);
+          return {
+            ...prev,
+            grid: newGrid,
+            stats: { ...prev.stats, ...stats },
+          };
+        }
       }
       
       return prev;

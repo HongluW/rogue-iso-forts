@@ -2,81 +2,51 @@
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useForts } from '@/context/FortsContext';
-import { Tile, BuildingType } from '@/games/forts/types';
-// Isometric tile constants
-const TILE_WIDTH = 64;
-const TILE_HEIGHT = 32;
+import { Tile, BuildingType, HexPosition } from '@/games/forts/types';
+import {
+  hexToScreen,
+  screenToHex,
+  HEX_SIZE,
+  HEX_WIDTH,
+  HEX_HEIGHT,
+  getHexesInRadius,
+  hexToKey,
+} from '@/games/forts/lib/hexUtils';
+import { getSpriteCoords, getActiveSpritePack } from '@/lib/renderConfig';
+import { getFortsBuildingSprite } from '@/games/forts/lib/renderConfig';
 
-// Convert grid coordinates to screen coordinates (isometric)
-function gridToScreen(x: number, y: number, offsetX: number, offsetY: number): { screenX: number; screenY: number } {
-  const screenX = (x - y) * (TILE_WIDTH / 2) + offsetX;
-  const screenY = (x + y) * (TILE_HEIGHT / 2) + offsetY;
-  return { screenX, screenY };
-}
-
-// Convert screen coordinates to grid coordinates
-function screenToGrid(screenX: number, screenY: number, offsetX: number, offsetY: number): { gridX: number; gridY: number } {
-  const adjustedX = screenX - offsetX - TILE_WIDTH / 2;
-  const adjustedY = screenY - offsetY - TILE_HEIGHT / 2;
-  const gridX = (adjustedX / (TILE_WIDTH / 2) + adjustedY / (TILE_HEIGHT / 2)) / 2;
-  const gridY = (adjustedY / (TILE_HEIGHT / 2) - adjustedX / (TILE_WIDTH / 2)) / 2;
-  return { gridX: Math.round(gridX), gridY: Math.round(gridY) };
-}
-// Simple drawing helpers for forts
-function drawIsometricDiamond(
+// Draw simple flat hexagon (no 3D effect)
+function drawHexagon(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
+  centerX: number,
+  centerY: number,
   colors: { top: string; left: string; right: string; stroke: string },
   drawStroke: boolean = true
 ) {
-  const w = TILE_WIDTH;
-  const h = TILE_HEIGHT;
+  const size = HEX_SIZE;
   
-  // Top face
+  // Calculate hexagon vertices (flat-top orientation)
   ctx.fillStyle = colors.top;
   ctx.beginPath();
-  ctx.moveTo(x + w / 2, y);
-  ctx.lineTo(x + w, y + h / 2);
-  ctx.lineTo(x + w / 2, y + h);
-  ctx.lineTo(x, y + h / 2);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Left face (darker)
-  ctx.fillStyle = colors.left;
-  ctx.beginPath();
-  ctx.moveTo(x, y + h / 2);
-  ctx.lineTo(x + w / 2, y + h);
-  ctx.lineTo(x + w / 2, y + h + h / 4);
-  ctx.lineTo(x, y + h / 2 + h / 4);
-  ctx.closePath();
-  ctx.fill();
-  
-  // Right face (lighter)
-  ctx.fillStyle = colors.right;
-  ctx.beginPath();
-  ctx.moveTo(x + w / 2, y + h);
-  ctx.lineTo(x + w, y + h / 2);
-  ctx.lineTo(x + w, y + h / 2 + h / 4);
-  ctx.lineTo(x + w / 2, y + h + h / 4);
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 6; // Start at top
+    const x = centerX + size * Math.cos(angle);
+    const y = centerY + size * Math.sin(angle);
+    if (i === 0) {
+      ctx.moveTo(x, y);
+    } else {
+      ctx.lineTo(x, y);
+    }
+  }
   ctx.closePath();
   ctx.fill();
   
   if (drawStroke) {
     ctx.strokeStyle = colors.stroke;
-    ctx.lineWidth = 0.5;
-    ctx.beginPath();
-    ctx.moveTo(x + w / 2, y);
-    ctx.lineTo(x + w, y + h / 2);
-    ctx.lineTo(x + w / 2, y + h);
-    ctx.lineTo(x, y + h / 2);
-    ctx.closePath();
+    ctx.lineWidth = 1;
     ctx.stroke();
   }
 }
-import { getSpriteCoords, getActiveSpritePack } from '@/lib/renderConfig';
-import { getFortsBuildingSprite } from '@/games/forts/lib/renderConfig';
 // Simple image cache for sprites
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -101,18 +71,19 @@ function getCachedImage(src: string): HTMLImageElement | null {
 }
 
 interface FortsCanvasProps {
-  selectedTile: { x: number; y: number } | null;
-  setSelectedTile: (tile: { x: number; y: number } | null) => void;
+  selectedTile: HexPosition | null;
+  setSelectedTile: (tile: HexPosition | null) => void;
   isMobile?: boolean;
 }
 
 export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }: FortsCanvasProps) {
   const { state, latestStateRef, placeAtTile } = useForts();
-  const { grid, gridSize, selectedTool } = state;
+  const { grid, gridSize, selectedTool } = state; // grid is now Map<string, Tile>
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderPendingRef = useRef<number | null>(null);
-  const [offset, setOffset] = useState({ x: isMobile ? 200 : 620, y: isMobile ? 100 : 160 });
+  // Initial offset to center hex grid - hex (0,0) should be near center of viewport
+  const [offset, setOffset] = useState({ x: isMobile ? 200 : 400, y: isMobile ? 100 : 300 });
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -123,9 +94,12 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const spritePack = useMemo(() => getActiveSpritePack(), []);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   
-  // Load sprite images
+  // Load sprite images (optional - don't block rendering)
   useEffect(() => {
-    if (!spritePack?.src) return;
+    if (!spritePack?.src) {
+      setImagesLoaded(true); // No sprites to load, allow rendering
+      return;
+    }
     
     const loadImages = async () => {
       try {
@@ -269,21 +243,20 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       const y = e.clientY - rect.top;
       
       const dpr = window.devicePixelRatio || 1;
-      const gridPos = screenToGrid(
-        x * dpr / zoom,
-        y * dpr / zoom,
-        offset.x,
-        offset.y
-      );
+      const canvasX = x * dpr;
+      const canvasY = y * dpr;
+      // Calculate view center for isometric transform reversal (fixed center, not dependent on offset)
+      const viewCenterX = canvas.width / (2 * dpr * zoom);
+      const viewCenterY = canvas.height / (2 * dpr * zoom);
+      const hexPos = screenToHex(canvasX, canvasY, offset.x, offset.y, dpr, zoom, viewCenterX, viewCenterY);
       
-      const tileX = Math.floor(gridPos.gridX);
-      const tileY = Math.floor(gridPos.gridY);
-      
-      if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
+      // Check if hex exists in grid
+      const key = hexToKey(hexPos.q, hexPos.r);
+      if (grid.has(key)) {
         if (selectedTool === 'select') {
-          setSelectedTile({ x: tileX, y: tileY });
+          setSelectedTile({ q: hexPos.q, r: hexPos.r });
         } else {
-          placeAtTile(tileX, tileY);
+          placeAtTile(hexPos.q, hexPos.r);
         }
       }
     }
@@ -291,13 +264,13 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     setIsDragging(false);
     isPanningRef.current = false;
     mouseButtonRef.current = null;
-  }, [isDragging, selectedTool, gridSize, offset, zoom, placeAtTile, setSelectedTile]);
+  }, [isDragging, selectedTool, gridSize, offset, zoom, placeAtTile, setSelectedTile, grid]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    // Reduced zoom sensitivity - smaller delta for smoother zooming
+    // Zoom in/out by changing HEX_SIZE via a zoom multiplier
     const delta = e.deltaY > 0 ? 0.95 : 1.05;
-    setZoom(prev => Math.max(0.5, Math.min(2, prev * delta)));
+    setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
   }, []);
 
   // Touch handlers for trackpad/touchscreen support
@@ -352,21 +325,20 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       const y = touch.clientY - rect.top;
       
       const dpr = window.devicePixelRatio || 1;
-      const gridPos = screenToGrid(
-        x * dpr / zoom,
-        y * dpr / zoom,
-        offset.x,
-        offset.y
-      );
+      const canvasX = x * dpr;
+      const canvasY = y * dpr;
+      // Calculate view center for isometric transform reversal (fixed center, not dependent on offset)
+      const viewCenterX = canvas.width / (2 * dpr * zoom);
+      const viewCenterY = canvas.height / (2 * dpr * zoom);
+      const hexPos = screenToHex(canvasX, canvasY, offset.x, offset.y, dpr, zoom, viewCenterX, viewCenterY);
       
-      const tileX = Math.floor(gridPos.gridX);
-      const tileY = Math.floor(gridPos.gridY);
-      
-      if (tileX >= 0 && tileX < gridSize && tileY >= 0 && tileY < gridSize) {
+      // Check if hex exists in grid
+      const key = hexToKey(hexPos.q, hexPos.r);
+      if (grid.has(key)) {
         if (selectedTool === 'select') {
-          setSelectedTile({ x: tileX, y: tileY });
+          setSelectedTile({ q: hexPos.q, r: hexPos.r });
         } else {
-          placeAtTile(tileX, tileY);
+          placeAtTile(hexPos.q, hexPos.r);
         }
       }
     }
@@ -375,7 +347,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     isPanningRef.current = false;
     touchStartRef.current = null;
     mouseButtonRef.current = null;
-  }, [selectedTool, gridSize, offset, zoom, placeAtTile, setSelectedTile]);
+  }, [selectedTool, gridSize, offset, zoom, placeAtTile, setSelectedTile, grid]);
 
   // Main render function
   useEffect(() => {
@@ -392,7 +364,8 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     renderPendingRef.current = requestAnimationFrame(() => {
       renderPendingRef.current = null;
       
-      if (!imagesLoaded) return; // Wait for images to load
+      // Render even if images aren't loaded - hex grid should always be visible
+      // Sprites will just be skipped if images aren't ready
       
       const dpr = window.devicePixelRatio || 1;
       ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -407,84 +380,97 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
       ctx.save();
+      // Scale for DPR and zoom
       ctx.scale(dpr * zoom, dpr * zoom);
+      // Translate by offset (adjusted for zoom)
       ctx.translate(offset.x / zoom, offset.y / zoom);
+      
+      // Apply slight tilt for fake 3D feeling (tilt backwards/away from camera)
+      // Use fixed center point for rotation (not dependent on offset)
+      const fixedCenterX = canvas.width / (2 * dpr * zoom);
+      const fixedCenterY = canvas.height / (2 * dpr * zoom);
+      ctx.translate(fixedCenterX, fixedCenterY);
+      // Rotate +30 degrees (opposite direction) to tilt backwards
+      ctx.rotate(Math.PI / 6); // Rotate +30 degrees for backward tilt
+      ctx.scale(1, 0.866); // Compress Y axis (cos(30°) = 0.866) for isometric look
+      ctx.translate(-fixedCenterX, -fixedCenterY);
+      
       ctx.imageSmoothingEnabled = false;
       
-      // Calculate visible tile range
-      const viewWidth = canvas.width / (dpr * zoom);
-      const viewHeight = canvas.height / (dpr * zoom);
-      const viewLeft = -offset.x / zoom - TILE_WIDTH;
-      const viewTop = -offset.y / zoom - TILE_HEIGHT * 2;
-      const viewRight = viewWidth - offset.x / zoom + TILE_WIDTH;
-      const viewBottom = viewHeight - offset.y / zoom + TILE_HEIGHT * 2;
-      
-      const visibleMinSum = Math.max(0, Math.floor((viewTop - TILE_HEIGHT * 6) * 2 / TILE_HEIGHT));
-      const visibleMaxSum = Math.min(gridSize * 2 - 2, Math.ceil((viewBottom + TILE_HEIGHT) * 2 / TILE_HEIGHT));
-      
-      // Build render queue (sorted by depth)
-      type RenderItem = { x: number; y: number; tile: Tile; depth: number };
+      // Build render queue (sorted by depth for flat-top hexes: r first, then q)
+      type RenderItem = { q: number; r: number; tile: Tile; depth: number };
       const renderQueue: RenderItem[] = [];
       
-      for (let sum = visibleMinSum; sum <= visibleMaxSum; sum++) {
-        for (let x = 0; x < gridSize; x++) {
-          const y = sum - x;
-          if (y < 0 || y >= gridSize) continue;
-          
-          const tile = latestStateRef.current?.grid[y]?.[x] || grid[y][x];
-          if (!tile) continue;
-          
-          const { screenX, screenY } = gridToScreen(x, y, 0, 0);
-          
-          // Skip if outside viewport
-          if (screenX + TILE_WIDTH < viewLeft || screenX > viewRight ||
-              screenY + TILE_HEIGHT < viewTop || screenY > viewBottom) {
-            continue;
-          }
-          
-          renderQueue.push({
-            x,
-            y,
-            tile,
-            depth: x + y, // Depth for sorting
-          });
-        }
+      // Iterate over all hexes in grid
+      const currentGrid = latestStateRef.current?.grid || grid;
+      
+      // Debug: Check if grid has hexes
+      if (currentGrid.size === 0) {
+        console.warn('[FortsCanvas] Hex grid is empty!');
+      }
+      
+      // Render all hexes (viewport culling disabled for now to ensure grid is visible)
+      // The transform handles the viewport naturally
+      for (const [key, tile] of currentGrid.entries()) {
+        const [q, r] = key.split(',').map(Number);
+        
+        // Calculate screen position in world coordinates
+        const { screenX, screenY } = hexToScreen(q, r, 0, 0);
+        
+        // Depth sorting: r first (top to bottom), then q (left to right)
+        renderQueue.push({
+          q,
+          r,
+          tile,
+          depth: r * 1000 + q, // r is primary, q is secondary
+        });
+      }
+      
+      // Debug: Log if no hexes are being rendered
+      if (renderQueue.length === 0 && currentGrid.size > 0) {
+        console.warn('[FortsCanvas] No hexes in viewport!', {
+          viewport: { viewLeft, viewRight, viewTop, viewBottom },
+          gridSize: currentGrid.size,
+          offset: { x: offset.x, y: offset.y },
+          zoom,
+        });
       }
       
       // Sort by depth
       renderQueue.sort((a, b) => a.depth - b.depth);
       
-      // Render tiles
+      // Render hexes
       for (const item of renderQueue) {
-        const { x, y, tile } = item;
-        const { screenX, screenY } = gridToScreen(x, y, 0, 0);
+        const { q, r, tile } = item;
+        // Calculate screen position for rendering
+        const { screenX, screenY } = hexToScreen(q, r, 0, 0);
         
         const building = tile.building;
-        const isSelected = selectedTile?.x === x && selectedTile?.y === y;
+        const isSelected = selectedTile?.q === q && selectedTile?.r === r;
         
-        // Draw base tile
+        // Draw base hex
         if (building.type === 'water') {
-          drawIsometricDiamond(ctx, screenX, screenY, {
+          drawHexagon(ctx, screenX, screenY, {
             top: '#2563eb',
             left: '#1e3a8a',
             right: '#3b82f6',
             stroke: '#1e40af',
-          }, zoom >= 0.6);
+          }, true);
         } else if (building.type === 'grass' || building.type === 'empty') {
-          drawIsometricDiamond(ctx, screenX, screenY, {
+          drawHexagon(ctx, screenX, screenY, {
             top: '#4a7c3f',
             left: '#3d6634',
             right: '#5a8f4f',
             stroke: '#2d4a26',
-          }, zoom >= 0.6);
+          }, true);
         } else {
           // Grey base for buildings
-          drawIsometricDiamond(ctx, screenX, screenY, {
+          drawHexagon(ctx, screenX, screenY, {
             top: '#6b7280',
             left: '#4b5563',
             right: '#9ca3af',
             stroke: '#374151',
-          }, zoom >= 0.6);
+          }, true);
         }
         
         // Draw building sprite if not empty/grass/water
@@ -506,37 +492,54 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
                 
                 ctx.save();
                 ctx.globalAlpha = alpha;
+                // Center sprite on hex
+                const spriteX = screenX - coords.sw / 2;
+                const spriteY = screenY - coords.sh / 2;
                 ctx.drawImage(
                   spriteImage,
                   coords.sx, coords.sy, coords.sw, coords.sh,
-                  screenX, screenY - coords.sh * 0.3, // Offset for isometric
+                  spriteX, spriteY,
                   coords.sw, coords.sh
                 );
                 ctx.restore();
               }
             }
           } else {
-            // Fallback: draw simple colored rectangle
+            // Fallback: draw simple colored hexagon
             ctx.fillStyle = building.constructionProgress < 100 ? '#888' : '#654321';
+            const size = HEX_SIZE;
             ctx.beginPath();
-            ctx.moveTo(screenX + TILE_WIDTH / 2, screenY);
-            ctx.lineTo(screenX + TILE_WIDTH, screenY + TILE_HEIGHT / 2);
-            ctx.lineTo(screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT);
-            ctx.lineTo(screenX, screenY + TILE_HEIGHT / 2);
+            for (let i = 0; i < 6; i++) {
+              const angle = (Math.PI / 3) * i - Math.PI / 6;
+              const x = screenX + size * Math.cos(angle);
+              const y = screenY + size * Math.sin(angle);
+              if (i === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
+              }
+            }
             ctx.closePath();
             ctx.fill();
           }
         }
         
-        // Draw selection highlight
+        // Draw selection highlight (hexagon outline)
         if (isSelected) {
           ctx.strokeStyle = '#ffff00';
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 3;
+          const size = HEX_SIZE;
           ctx.beginPath();
-          ctx.moveTo(screenX + TILE_WIDTH / 2, screenY);
-          ctx.lineTo(screenX + TILE_WIDTH, screenY + TILE_HEIGHT / 2);
-          ctx.lineTo(screenX + TILE_WIDTH / 2, screenY + TILE_HEIGHT);
-          ctx.lineTo(screenX, screenY + TILE_HEIGHT / 2);
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 6;
+            const x = screenX + size * Math.cos(angle);
+            const y = screenY + size * Math.sin(angle);
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
           ctx.closePath();
           ctx.stroke();
         }
@@ -544,7 +547,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       
       ctx.restore();
     });
-  }, [grid, gridSize, selectedTile, offset, zoom, latestStateRef, spritePack]);
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded]);
 
   return (
     <div
