@@ -11,8 +11,8 @@ import {
   HEX_HEIGHT,
   getHexesInRadius,
   hexToKey,
-  hexLineBetween,
 } from '@/games/forts/lib/hexUtils';
+import { useDragBuild } from '@/hooks/useDragBuild';
 import { getSpriteCoords, getActiveSpritePack } from '@/lib/renderConfig';
 import { getFortsBuildingSprite } from '@/games/forts/lib/renderConfig';
 
@@ -94,16 +94,6 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const panSpeed = 5; // Pixels per frame for WASD movement
   const spritePack = useMemo(() => getActiveSpritePack(), []);
   const [imagesLoaded, setImagesLoaded] = useState(false);
-  
-  // Drag-build state for line tools (moat, walls, etc.)
-  const [dragBuildStart, setDragBuildStart] = useState<HexPosition | null>(null);
-  const [dragBuildCurrent, setDragBuildCurrent] = useState<HexPosition | null>(null);
-  const [dragBuildPreview, setDragBuildPreview] = useState<HexPosition[]>([]);
-  const isDragBuildingRef = useRef(false);
-  
-  // Glow animation state (must be declared before render useEffect)
-  const glowAnimRef = useRef<number | null>(null);
-  const [glowTick, setGlowTick] = useState(0);
   
   // Load sprite images (optional - don't block rendering)
   useEffect(() => {
@@ -211,59 +201,41 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     if (grid.has(key)) return hexPos;
     return null;
   }, [offset, zoom, grid]);
+
+  const dragBuild = useDragBuild({
+    grid,
+    selectedTool,
+    mouseToHex,
+    placeMultipleTiles,
+    onCancel: () => {
+      setIsDragging(false);
+      mouseButtonRef.current = null;
+    },
+  });
   
   // Mouse/touch handlers - Right click for panning, left click for placement only
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     mouseButtonRef.current = e.button;
-    
     if (e.button === 2) {
-      // Right click - start panning
       e.preventDefault();
+      if (dragBuild.onMouseDown(e)) return;
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
       isPanningRef.current = true;
     } else if (e.button === 0) {
-      // Left click - tile selection/placement or drag-build start
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
       isPanningRef.current = false;
-      
-      // If it's a drag-build tool, start drag-build
-      if (isDragBuildTool(selectedTool)) {
-        const hexPos = mouseToHex(e);
-        if (hexPos) {
-          isDragBuildingRef.current = true;
-          setDragBuildStart(hexPos);
-          setDragBuildCurrent(hexPos);
-          setDragBuildPreview([hexPos]); // Start with single hex preview
-        }
-      }
+      dragBuild.onMouseDown(e);
     }
-  }, [selectedTool, mouseToHex]);
+  }, [dragBuild]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
-    
-    // Drag-build: update preview line as mouse moves
-    if (isDragBuildingRef.current && mouseButtonRef.current === 0 && dragBuildStart) {
-      const hexPos = mouseToHex(e);
-      if (hexPos && (hexPos.q !== dragBuildCurrent?.q || hexPos.r !== dragBuildCurrent?.r)) {
-        setDragBuildCurrent(hexPos);
-        // Calculate line of hexes between start and current
-        const lineHexes = hexLineBetween(dragBuildStart.q, dragBuildStart.r, hexPos.q, hexPos.r);
-        // Only include hexes that exist in the grid
-        const validHexes = lineHexes.filter(h => grid.has(hexToKey(h.q, h.r)));
-        setDragBuildPreview(validHexes);
-      }
-      return;
-    }
-    
-    // CRITICAL: Only pan if it's a right-click drag (button 2)
+    if (dragBuild.onMouseMove(e)) return;
     if (mouseButtonRef.current !== 2) return;
-    
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
-    
     if (isPanningRef.current && mouseButtonRef.current === 2) {
       setOffset(prev => ({
         x: prev.x + dx,
@@ -271,57 +243,31 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       }));
       setDragStart({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, dragStart, dragBuildStart, dragBuildCurrent, mouseToHex, grid]);
+  }, [isDragging, dragStart, dragBuild]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
-    
-    // Right click - just stop panning
     if (e.button === 2 || mouseButtonRef.current === 2) {
       setIsDragging(false);
       isPanningRef.current = false;
       mouseButtonRef.current = null;
       return;
     }
-    
-    // Drag-build finalize: place all hexes in the preview line
-    if (isDragBuildingRef.current && dragBuildPreview.length > 0) {
-      placeMultipleTiles(dragBuildPreview);
-      // Reset drag-build state
-      isDragBuildingRef.current = false;
-      setDragBuildStart(null);
-      setDragBuildCurrent(null);
-      setDragBuildPreview([]);
-      setIsDragging(false);
-      mouseButtonRef.current = null;
-      return;
-    }
-    
-    // Reset drag-build state if it was active but had no preview
-    if (isDragBuildingRef.current) {
-      isDragBuildingRef.current = false;
-      setDragBuildStart(null);
-      setDragBuildCurrent(null);
-      setDragBuildPreview([]);
-    }
-    
-    // Left click - handle tile selection/placement (non-drag tools)
+    if (dragBuild.onMouseUp(e)) return;
     if ((e.button === 0 || mouseButtonRef.current === 0) && canvasRef.current && containerRef.current) {
       const hexPos = mouseToHex(e);
       if (hexPos) {
         if (selectedTool === 'select') {
           setSelectedTile({ q: hexPos.q, r: hexPos.r });
         } else if (!isDragBuildTool(selectedTool)) {
-          // Only single-click place for non-drag tools
           placeAtTile(hexPos.q, hexPos.r);
         }
       }
     }
-    
     setIsDragging(false);
     isPanningRef.current = false;
     mouseButtonRef.current = null;
-  }, [isDragging, selectedTool, dragBuildPreview, mouseToHex, placeAtTile, placeMultipleTiles, setSelectedTile]);
+  }, [isDragging, selectedTool, mouseToHex, placeAtTile, setSelectedTile, dragBuild]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -656,7 +602,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       }
       
       // Draw drag-build preview (glowing hexes along the line)
-      if (dragBuildPreview.length > 0) {
+      if (dragBuild.dragBuildPreview.length > 0) {
         // Determine preview color based on tool
         let previewColor = '#2563eb'; // default blue
         let previewStroke = '#60a5fa';
@@ -665,16 +611,14 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           previewStroke = '#93c5fd';
         }
         
-        // Glow effect: pulsating alpha
-        const time = Date.now() / 500;
-        const pulseAlpha = 0.4 + 0.3 * Math.sin(time * Math.PI);
+        const previewAlpha = 0.7;
         
-        for (const hex of dragBuildPreview) {
+        for (const hex of dragBuild.dragBuildPreview) {
           const { screenX: px, screenY: py } = hexToScreen(hex.q, hex.r, 0, 0);
           
           // Draw outer glow
           ctx.save();
-          ctx.globalAlpha = pulseAlpha * 0.3;
+          ctx.globalAlpha = previewAlpha * 0.3;
           ctx.shadowColor = previewStroke;
           ctx.shadowBlur = 15;
           drawHexagon(ctx, px, py, {
@@ -687,7 +631,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           
           // Draw the glowing hex itself
           ctx.save();
-          ctx.globalAlpha = pulseAlpha;
+          ctx.globalAlpha = previewAlpha;
           drawHexagon(ctx, px, py, {
             top: previewColor,
             left: previewColor,
@@ -698,7 +642,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           
           // Draw bright border
           ctx.save();
-          ctx.globalAlpha = pulseAlpha + 0.2;
+          ctx.globalAlpha = Math.min(previewAlpha + 0.2, 1);
           ctx.strokeStyle = previewStroke;
           ctx.lineWidth = 2;
           const size = HEX_SIZE;
@@ -722,36 +666,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       ctx.restore();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuildPreview, selectedTool, glowTick]);
-  
-  // Glow animation: re-render at ~30fps while drag-build preview is active
-  useEffect(() => {
-    if (dragBuildPreview.length === 0) {
-      if (glowAnimRef.current !== null) {
-        cancelAnimationFrame(glowAnimRef.current);
-        glowAnimRef.current = null;
-      }
-      return;
-    }
-    
-    let lastTime = 0;
-    const animate = (time: number) => {
-      // Throttle to ~30fps for glow pulse
-      if (time - lastTime > 33) {
-        lastTime = time;
-        setGlowTick(t => t + 1);
-      }
-      glowAnimRef.current = requestAnimationFrame(animate);
-    };
-    
-    glowAnimRef.current = requestAnimationFrame(animate);
-    return () => {
-      if (glowAnimRef.current !== null) {
-        cancelAnimationFrame(glowAnimRef.current);
-        glowAnimRef.current = null;
-      }
-    };
-  }, [dragBuildPreview.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
 
   return (
     <div
@@ -761,15 +676,11 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={() => {
-        setIsDragging(false);
-        isPanningRef.current = false;
-        mouseButtonRef.current = null;
-        // Cancel drag-build on mouse leave
-        if (isDragBuildingRef.current) {
-          isDragBuildingRef.current = false;
-          setDragBuildStart(null);
-          setDragBuildCurrent(null);
-          setDragBuildPreview([]);
+        dragBuild.onMouseLeave();
+        if (!dragBuild.isDragBuildingRef.current) {
+          setIsDragging(false);
+          isPanningRef.current = false;
+          mouseButtonRef.current = null;
         }
       }}
       onTouchStart={handleTouchStart}
