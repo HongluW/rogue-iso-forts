@@ -174,6 +174,51 @@ export function keyToHex(key: string): HexPosition {
 }
 
 /**
+ * Get all hexes along a straight line between two hex positions
+ * Uses linear interpolation in cube coordinates
+ */
+export function hexLineBetween(q1: number, r1: number, q2: number, r2: number): HexPosition[] {
+  const N = hexDistance(q1, r1, q2, r2);
+  if (N === 0) return [{ q: q1, r: r1 }];
+  
+  const results: HexPosition[] = [];
+  
+  // Convert to cube coordinates for interpolation
+  const x1 = q1, z1 = r1, y1 = -x1 - z1;
+  const x2 = q2, z2 = r2, y2 = -x2 - z2;
+  
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    // Nudge to avoid hitting exact boundaries between hexes
+    const nudge = 1e-6;
+    const cx = x1 + (x2 - x1) * t + nudge;
+    const cy = y1 + (y2 - y1) * t + nudge;
+    const cz = z1 + (z2 - z1) * t - 2 * nudge;
+    
+    // Round cube coordinates
+    let rx = Math.round(cx);
+    let ry = Math.round(cy);
+    let rz = Math.round(cz);
+    
+    const xDiff = Math.abs(rx - cx);
+    const yDiff = Math.abs(ry - cy);
+    const zDiff = Math.abs(rz - cz);
+    
+    if (xDiff > yDiff && xDiff > zDiff) {
+      rx = -ry - rz;
+    } else if (yDiff > zDiff) {
+      ry = -rx - rz;
+    } else {
+      rz = -rx - ry;
+    }
+    
+    results.push({ q: rx, r: rz });
+  }
+  
+  return results;
+}
+
+/**
  * Check if hex position is within bounds
  */
 export function isHexInBounds(

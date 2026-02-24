@@ -11,7 +11,7 @@ export type BuildingType =
   // Base tiles
   | 'empty'
   | 'grass'
-  | 'water';
+  | 'moat';
 
 // =============================================================================
 // BUILDING STATS
@@ -28,5 +28,5 @@ export interface BuildingStats {
 export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
   empty: { cost: 0, description: 'Empty space' },
   grass: { cost: 0, description: 'Grass' },
-  water: { cost: 0, description: 'Water' },
+  moat: { cost: 5, description: 'Moat - water defense' },
 };

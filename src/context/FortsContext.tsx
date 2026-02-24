@@ -45,6 +45,7 @@ type FortsContextValue = {
   setSpeed: (speed: 0 | 1 | 2 | 3) => void;
   setActivePanel: (panel: GameState['activePanel']) => void;
   placeAtTile: (x: number, y: number) => void;
+  placeMultipleTiles: (hexes: { q: number; r: number }[]) => void;
   newGame: (name?: string, size?: number) => void;
   hasExistingGame: boolean;
   isStateReady: boolean;
@@ -227,17 +228,17 @@ export function FortsProvider({
             stats: { ...prev.stats, ...stats },
           };
         }
-      } else if (tool === 'zone_water') {
-        // Place water
+      } else if (tool === 'zone_moat') {
+        // Place moat
         const tile = newGrid.get(key);
         if (tile) {
           tile.building = {
-            type: 'water',
+            type: 'moat',
             constructionProgress: 100,
             powered: false,
             watered: false,
           };
-          tile.zone = 'water';
+          tile.zone = 'moat';
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return {
             ...prev,
@@ -269,6 +270,65 @@ export function FortsProvider({
     });
   }, []);
   
+  const placeMultipleTiles = useCallback((hexes: { q: number; r: number }[]) => {
+    if (hexes.length === 0) return;
+    
+    setState(prev => {
+      const tool = prev.selectedTool;
+      
+      // Create new grid map
+      const newGrid = new Map<string, Tile>();
+      for (const [key, tile] of prev.grid.entries()) {
+        newGrid.set(key, { ...tile, building: { ...tile.building } });
+      }
+      
+      let changed = false;
+      
+      for (const hex of hexes) {
+        const key = `${hex.q},${hex.r}`;
+        
+        if (tool === 'bulldoze') {
+          if (bulldozeTile(newGrid, prev.gridSize, hex.q, hex.r)) {
+            changed = true;
+          }
+        } else if (tool === 'zone_moat') {
+          const tile = newGrid.get(key);
+          if (tile) {
+            tile.building = {
+              type: 'moat',
+              constructionProgress: 100,
+              powered: false,
+              watered: false,
+            };
+            tile.zone = 'moat';
+            changed = true;
+          }
+        } else if (tool === 'zone_land') {
+          const tile = newGrid.get(key);
+          if (tile) {
+            tile.building = {
+              type: 'grass',
+              constructionProgress: 100,
+              powered: false,
+              watered: false,
+            };
+            tile.zone = 'land';
+            changed = true;
+          }
+        }
+      }
+      
+      if (!changed) return prev;
+      
+      const stats = calculateFortStats(newGrid, prev.gridSize);
+      return {
+        ...prev,
+        grid: newGrid,
+        stats: { ...prev.stats, ...stats },
+      };
+    });
+  }, []);
+  
   const newGame = useCallback((name?: string, size?: number) => {
     const newState = createInitialGameState(name, size);
     setState(newState);
@@ -293,6 +353,7 @@ export function FortsProvider({
     setSpeed,
     setActivePanel,
     placeAtTile,
+    placeMultipleTiles,
     newGame,
     hasExistingGame: hasSavedGame,
     isStateReady,

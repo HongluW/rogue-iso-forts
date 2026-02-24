@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useForts } from '@/context/FortsContext';
-import { Tile, BuildingType, HexPosition } from '@/games/forts/types';
+import { Tile, BuildingType, HexPosition, isDragBuildTool } from '@/games/forts/types';
 import {
   hexToScreen,
   screenToHex,
@@ -11,6 +11,7 @@ import {
   HEX_HEIGHT,
   getHexesInRadius,
   hexToKey,
+  hexLineBetween,
 } from '@/games/forts/lib/hexUtils';
 import { getSpriteCoords, getActiveSpritePack } from '@/lib/renderConfig';
 import { getFortsBuildingSprite } from '@/games/forts/lib/renderConfig';
@@ -77,7 +78,7 @@ interface FortsCanvasProps {
 }
 
 export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }: FortsCanvasProps) {
-  const { state, latestStateRef, placeAtTile } = useForts();
+  const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
   const { grid, gridSize, selectedTool } = state; // grid is now Map<string, Tile>
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -93,6 +94,16 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const panSpeed = 5; // Pixels per frame for WASD movement
   const spritePack = useMemo(() => getActiveSpritePack(), []);
   const [imagesLoaded, setImagesLoaded] = useState(false);
+  
+  // Drag-build state for line tools (moat, walls, etc.)
+  const [dragBuildStart, setDragBuildStart] = useState<HexPosition | null>(null);
+  const [dragBuildCurrent, setDragBuildCurrent] = useState<HexPosition | null>(null);
+  const [dragBuildPreview, setDragBuildPreview] = useState<HexPosition[]>([]);
+  const isDragBuildingRef = useRef(false);
+  
+  // Glow animation state (must be declared before render useEffect)
+  const glowAnimRef = useRef<number | null>(null);
+  const [glowTick, setGlowTick] = useState(0);
   
   // Load sprite images (optional - don't block rendering)
   useEffect(() => {
@@ -183,6 +194,24 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     };
   }, []);
 
+  // Helper: convert mouse event to hex position
+  const mouseToHex = useCallback((e: React.MouseEvent | { clientX: number; clientY: number }): HexPosition | null => {
+    if (!canvasRef.current) return null;
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const dpr = window.devicePixelRatio || 1;
+    const canvasX = x * dpr;
+    const canvasY = y * dpr;
+    const viewCenterX = canvas.width / (2 * dpr * zoom);
+    const viewCenterY = canvas.height / (2 * dpr * zoom);
+    const hexPos = screenToHex(canvasX, canvasY, offset.x, offset.y, dpr, zoom, viewCenterX, viewCenterY);
+    const key = hexToKey(hexPos.q, hexPos.r);
+    if (grid.has(key)) return hexPos;
+    return null;
+  }, [offset, zoom, grid]);
+  
   // Mouse/touch handlers - Right click for panning, left click for placement only
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     mouseButtonRef.current = e.button;
@@ -194,27 +223,47 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       setDragStart({ x: e.clientX, y: e.clientY });
       isPanningRef.current = true;
     } else if (e.button === 0) {
-      // Left click - only for tile selection/placement, NEVER panning
+      // Left click - tile selection/placement or drag-build start
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
-      isPanningRef.current = false; // Explicitly set to false, never allow panning
+      isPanningRef.current = false;
+      
+      // If it's a drag-build tool, start drag-build
+      if (isDragBuildTool(selectedTool)) {
+        const hexPos = mouseToHex(e);
+        if (hexPos) {
+          isDragBuildingRef.current = true;
+          setDragBuildStart(hexPos);
+          setDragBuildCurrent(hexPos);
+          setDragBuildPreview([hexPos]); // Start with single hex preview
+        }
+      }
     }
-  }, []);
+  }, [selectedTool, mouseToHex]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
     
-    // CRITICAL: Only pan if it's a right-click drag (button 2)
-    // Left click (button 0) should NEVER pan, regardless of movement
-    if (mouseButtonRef.current !== 2) {
-      // Left click or other button - do nothing, just track position
+    // Drag-build: update preview line as mouse moves
+    if (isDragBuildingRef.current && mouseButtonRef.current === 0 && dragBuildStart) {
+      const hexPos = mouseToHex(e);
+      if (hexPos && (hexPos.q !== dragBuildCurrent?.q || hexPos.r !== dragBuildCurrent?.r)) {
+        setDragBuildCurrent(hexPos);
+        // Calculate line of hexes between start and current
+        const lineHexes = hexLineBetween(dragBuildStart.q, dragBuildStart.r, hexPos.q, hexPos.r);
+        // Only include hexes that exist in the grid
+        const validHexes = lineHexes.filter(h => grid.has(hexToKey(h.q, h.r)));
+        setDragBuildPreview(validHexes);
+      }
       return;
     }
+    
+    // CRITICAL: Only pan if it's a right-click drag (button 2)
+    if (mouseButtonRef.current !== 2) return;
     
     const dx = e.clientX - dragStart.x;
     const dy = e.clientY - dragStart.y;
     
-    // Only pan on right click drag
     if (isPanningRef.current && mouseButtonRef.current === 2) {
       setOffset(prev => ({
         x: prev.x + dx,
@@ -222,7 +271,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       }));
       setDragStart({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, dragStart]);
+  }, [isDragging, dragStart, dragBuildStart, dragBuildCurrent, mouseToHex, grid]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
@@ -235,27 +284,35 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       return;
     }
     
-    // Left click - handle tile selection/placement (never pans)
+    // Drag-build finalize: place all hexes in the preview line
+    if (isDragBuildingRef.current && dragBuildPreview.length > 0) {
+      placeMultipleTiles(dragBuildPreview);
+      // Reset drag-build state
+      isDragBuildingRef.current = false;
+      setDragBuildStart(null);
+      setDragBuildCurrent(null);
+      setDragBuildPreview([]);
+      setIsDragging(false);
+      mouseButtonRef.current = null;
+      return;
+    }
+    
+    // Reset drag-build state if it was active but had no preview
+    if (isDragBuildingRef.current) {
+      isDragBuildingRef.current = false;
+      setDragBuildStart(null);
+      setDragBuildCurrent(null);
+      setDragBuildPreview([]);
+    }
+    
+    // Left click - handle tile selection/placement (non-drag tools)
     if ((e.button === 0 || mouseButtonRef.current === 0) && canvasRef.current && containerRef.current) {
-      const canvas = canvasRef.current;
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const dpr = window.devicePixelRatio || 1;
-      const canvasX = x * dpr;
-      const canvasY = y * dpr;
-      // Calculate view center for isometric transform reversal (fixed center, not dependent on offset)
-      const viewCenterX = canvas.width / (2 * dpr * zoom);
-      const viewCenterY = canvas.height / (2 * dpr * zoom);
-      const hexPos = screenToHex(canvasX, canvasY, offset.x, offset.y, dpr, zoom, viewCenterX, viewCenterY);
-      
-      // Check if hex exists in grid
-      const key = hexToKey(hexPos.q, hexPos.r);
-      if (grid.has(key)) {
+      const hexPos = mouseToHex(e);
+      if (hexPos) {
         if (selectedTool === 'select') {
           setSelectedTile({ q: hexPos.q, r: hexPos.r });
-        } else {
+        } else if (!isDragBuildTool(selectedTool)) {
+          // Only single-click place for non-drag tools
           placeAtTile(hexPos.q, hexPos.r);
         }
       }
@@ -264,7 +321,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
     setIsDragging(false);
     isPanningRef.current = false;
     mouseButtonRef.current = null;
-  }, [isDragging, selectedTool, gridSize, offset, zoom, placeAtTile, setSelectedTile, grid]);
+  }, [isDragging, selectedTool, dragBuildPreview, mouseToHex, placeAtTile, placeMultipleTiles, setSelectedTile]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
@@ -483,7 +540,6 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       // Debug: Log if no hexes are being rendered
       if (renderQueue.length === 0 && currentGrid.size > 0) {
         console.warn('[FortsCanvas] No hexes in viewport!', {
-          viewport: { viewLeft, viewRight, viewTop, viewBottom },
           gridSize: currentGrid.size,
           offset: { x: offset.x, y: offset.y },
           zoom,
@@ -503,7 +559,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         const isSelected = selectedTile?.q === q && selectedTile?.r === r;
         
         // Draw base hex
-        if (building.type === 'water') {
+        if (building.type === 'moat') {
           drawHexagon(ctx, screenX, screenY, {
             top: '#2563eb',
             left: '#1e3a8a',
@@ -528,7 +584,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         }
         
         // Draw building sprite if not empty/grass/water
-        if (building.type !== 'empty' && building.type !== 'grass' && building.type !== 'water') {
+        if (building.type !== 'empty' && building.type !== 'grass' && building.type !== 'moat') {
           const spriteKey = getFortsBuildingSprite(building.type);
           if (spriteKey) {
             const spriteImage = getCachedImage(spritePack.src);
@@ -599,9 +655,103 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         }
       }
       
+      // Draw drag-build preview (glowing hexes along the line)
+      if (dragBuildPreview.length > 0) {
+        // Determine preview color based on tool
+        let previewColor = '#2563eb'; // default blue
+        let previewStroke = '#60a5fa';
+        if (selectedTool === 'zone_moat') {
+          previewColor = '#2563eb'; // moat blue
+          previewStroke = '#93c5fd';
+        }
+        
+        // Glow effect: pulsating alpha
+        const time = Date.now() / 500;
+        const pulseAlpha = 0.4 + 0.3 * Math.sin(time * Math.PI);
+        
+        for (const hex of dragBuildPreview) {
+          const { screenX: px, screenY: py } = hexToScreen(hex.q, hex.r, 0, 0);
+          
+          // Draw outer glow
+          ctx.save();
+          ctx.globalAlpha = pulseAlpha * 0.3;
+          ctx.shadowColor = previewStroke;
+          ctx.shadowBlur = 15;
+          drawHexagon(ctx, px, py, {
+            top: previewColor,
+            left: previewColor,
+            right: previewColor,
+            stroke: previewStroke,
+          }, true);
+          ctx.restore();
+          
+          // Draw the glowing hex itself
+          ctx.save();
+          ctx.globalAlpha = pulseAlpha;
+          drawHexagon(ctx, px, py, {
+            top: previewColor,
+            left: previewColor,
+            right: previewColor,
+            stroke: previewStroke,
+          }, true);
+          ctx.restore();
+          
+          // Draw bright border
+          ctx.save();
+          ctx.globalAlpha = pulseAlpha + 0.2;
+          ctx.strokeStyle = previewStroke;
+          ctx.lineWidth = 2;
+          const size = HEX_SIZE;
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 6;
+            const x = px + size * Math.cos(angle);
+            const y = py + size * Math.sin(angle);
+            if (i === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          }
+          ctx.closePath();
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      
       ctx.restore();
     });
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuildPreview, selectedTool, glowTick]);
+  
+  // Glow animation: re-render at ~30fps while drag-build preview is active
+  useEffect(() => {
+    if (dragBuildPreview.length === 0) {
+      if (glowAnimRef.current !== null) {
+        cancelAnimationFrame(glowAnimRef.current);
+        glowAnimRef.current = null;
+      }
+      return;
+    }
+    
+    let lastTime = 0;
+    const animate = (time: number) => {
+      // Throttle to ~30fps for glow pulse
+      if (time - lastTime > 33) {
+        lastTime = time;
+        setGlowTick(t => t + 1);
+      }
+      glowAnimRef.current = requestAnimationFrame(animate);
+    };
+    
+    glowAnimRef.current = requestAnimationFrame(animate);
+    return () => {
+      if (glowAnimRef.current !== null) {
+        cancelAnimationFrame(glowAnimRef.current);
+        glowAnimRef.current = null;
+      }
+    };
+  }, [dragBuildPreview.length > 0]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
@@ -614,6 +764,13 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         setIsDragging(false);
         isPanningRef.current = false;
         mouseButtonRef.current = null;
+        // Cancel drag-build on mouse leave
+        if (isDragBuildingRef.current) {
+          isDragBuildingRef.current = false;
+          setDragBuildStart(null);
+          setDragBuildCurrent(null);
+          setDragBuildPreview([]);
+        }
       }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}

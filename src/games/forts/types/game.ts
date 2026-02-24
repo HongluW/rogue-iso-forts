@@ -15,7 +15,7 @@ export type Tool =
   | 'bulldoze'
   
   // Terrain
-  | 'zone_water'
+  | 'zone_moat'
   | 'zone_land';
 
 // =============================================================================
@@ -37,7 +37,7 @@ export type ToolCategory =
 export const TOOL_INFO: Record<Tool, ToolInfo> = {
   select: { name: 'Select', cost: 0, description: 'Select tiles', category: 'tools' },
   bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools' },
-  zone_water: { name: 'Water', cost: 0, description: 'Place water', category: 'terrain' },
+  zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain' },
   zone_land: { name: 'Land', cost: 0, description: 'Place land/grass', category: 'terrain' },
 };
 
@@ -47,7 +47,7 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
 
 export interface Tile {
   building: Building;
-  zone: 'none' | 'water' | 'land';
+  zone: 'none' | 'moat' | 'land';
 }
 
 export interface Building {
@@ -96,6 +96,20 @@ export interface GameState {
   year: number;
   hour: number;
   gameVersion: number;
+}
+
+// =============================================================================
+// DRAG-BUILD TOOLS
+// Tools that support click-and-drag line building
+// =============================================================================
+
+export const DRAG_BUILD_TOOLS: Set<Tool> = new Set([
+  'zone_moat',
+  // Future drag tools go here (e.g. walls, roads)
+]);
+
+export function isDragBuildTool(tool: Tool): boolean {
+  return DRAG_BUILD_TOOLS.has(tool);
 }
 
 // SavedFortMeta is defined in saveUtils.ts

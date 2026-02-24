@@ -115,8 +115,8 @@ export function bulldozeTile(
   
   if (!tile) return false; // Hex doesn't exist
   
-  if (tile.building.type === 'empty' || tile.building.type === 'water') {
-    return false; // Can't bulldoze empty or water
+  if (tile.building.type === 'empty' || tile.building.type === 'moat') {
+    return false; // Can't bulldoze empty or moat
   }
   
   tile.building = {
