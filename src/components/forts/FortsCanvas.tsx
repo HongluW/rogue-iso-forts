@@ -268,10 +268,64 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
-    // Zoom in/out by changing HEX_SIZE via a zoom multiplier
+    
+    if (!canvasRef.current) return;
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    
+    // Get mouse position relative to canvas (in screen pixels)
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const canvasX = mouseX * dpr;
+    const canvasY = mouseY * dpr;
+    
+    // Calculate the view center for transform reversal (fixed point for isometric transform)
+    const viewCenterX = canvas.width / (2 * dpr * zoom);
+    const viewCenterY = canvas.height / (2 * dpr * zoom);
+    
+    // Step 1: Convert screen coordinates to world coordinates (before zoom)
+    // Reverse the transform chain: scale(dpr*zoom), translate(offset/zoom), translate(center), scale(1,0.8), translate(-center)
+    
+    // Start with screen coordinates in canvas pixels
+    let worldX = canvasX / (dpr * zoom) - offset.x / zoom;
+    let worldY = canvasY / (dpr * zoom) - offset.y / zoom;
+    
+    // Reverse isometric transform (Y-axis compression)
+    worldX = worldX - viewCenterX;
+    worldY = worldY - viewCenterY;
+    worldY = worldY / 0.8; // Reverse Y compression
+    worldX = worldX + viewCenterX;
+    worldY = worldY + viewCenterY;
+    
+    // Step 2: Apply zoom
     const delta = e.deltaY > 0 ? 0.95 : 1.05;
-    setZoom(prev => Math.max(0.3, Math.min(3, prev * delta)));
-  }, []);
+    const newZoom = Math.max(0.3, Math.min(3, zoom * delta));
+    
+    // Step 3: Calculate what the offset should be to keep the same world point under cursor
+    // We want: after transform, the world point should be at the same screen position
+    
+    // Calculate new view center with new zoom
+    const newViewCenterX = canvas.width / (2 * dpr * newZoom);
+    const newViewCenterY = canvas.height / (2 * dpr * newZoom);
+    
+    // Apply forward isometric transform to get where this world point would be on screen
+    let screenWorldX = worldX - newViewCenterX;
+    let screenWorldY = worldY - newViewCenterY;
+    screenWorldY = screenWorldY * 0.8; // Apply Y compression
+    screenWorldX = screenWorldX + newViewCenterX;
+    screenWorldY = screenWorldY + newViewCenterY;
+    
+    // Now calculate offset so that this world point appears at the cursor position
+    // We need: canvasX/(dpr*newZoom) = screenWorldX + newOffset.x/newZoom
+    // So: newOffset.x = (canvasX/(dpr*newZoom) - screenWorldX) * newZoom
+    const newOffsetX = (canvasX / (dpr * newZoom) - screenWorldX) * newZoom;
+    const newOffsetY = (canvasY / (dpr * newZoom) - screenWorldY) * newZoom;
+    
+    setZoom(newZoom);
+    setOffset({ x: newOffsetX, y: newOffsetY });
+  }, [zoom, offset]);
 
   // Touch handlers for trackpad/touchscreen support
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
