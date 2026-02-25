@@ -8,7 +8,9 @@ import {
   BuildingType,
   FortStats,
   TOOL_INFO,
-  getWallSegmentType,
+  getEdgesBetweenHexes,
+  normalizeEdge,
+  edgeToKey,
 } from '@/games/forts/types';
 import {
   createInitialGameState,
@@ -220,7 +222,6 @@ export function FortsProvider({
         newGrid.set(key, {
           ...tile,
           building: { ...tile.building },
-          wallSegments: tile.wallSegments ? [...tile.wallSegments] : [],
         });
       }
       
@@ -288,22 +289,10 @@ export function FortsProvider({
           };
         }
       } else if (tool === 'zone_wall') {
-        const tile = newGrid.get(key);
-        if (tile) {
-          tile.zone = 'wall';
-          if (!tile.wallSegments) tile.wallSegments = [];
-          if (!tile.wallSegments.includes('middle')) tile.wallSegments.push('middle');
-          const stats = calculateFortStats(newGrid, prev.gridSize);
-          return {
-            ...prev,
-            grid: newGrid,
-            stats: {
-              ...prev.stats,
-              ...stats,
-              money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost),
-            },
-          };
-        }
+        // Single-click wall placement doesn't make sense with edges
+        // Walls need at least 2 hexes to form an edge
+        // Just return unchanged state
+        return prev;
       }
       
       return prev;
@@ -330,55 +319,60 @@ export function FortsProvider({
         newGrid.set(key, {
           ...tile,
           building: { ...tile.building },
-          wallSegments: tile.wallSegments ? [...tile.wallSegments] : [],
         });
       }
       
+      // Create new walls set
+      const newWalls = new Set(prev.walls);
+      
       let changed = false;
       
-      for (let i = 0; i < hexes.length; i++) {
-        const hex = hexes[i];
-        const key = `${hex.q},${hex.r}`;
-        
-        if (tool === 'bulldoze') {
-          if (bulldozeTile(newGrid, prev.gridSize, hex.q, hex.r)) {
-            changed = true;
+      if (tool === 'zone_wall') {
+        // For walls, place on edges between consecutive hexes
+        if (hexes.length >= 2) {
+          const edges = getEdgesBetweenHexes(hexes);
+          for (const edge of edges) {
+            const edgeKey = edgeToKey(edge);
+            if (!newWalls.has(edgeKey)) {
+              newWalls.add(edgeKey);
+              changed = true;
+            }
           }
-        } else if (tool === 'zone_moat') {
-          const tile = newGrid.get(key);
-          if (tile) {
-            tile.building = {
-              type: 'moat',
-              constructionProgress: 100,
-              powered: false,
-              watered: false,
-            };
-            tile.zone = 'moat';
-            changed = true;
-          }
-        } else if (tool === 'zone_land') {
-          const tile = newGrid.get(key);
-          if (tile) {
-            tile.building = {
-              type: 'grass',
-              constructionProgress: 100,
-              powered: false,
-              watered: false,
-            };
-            tile.zone = 'land';
-            changed = true;
-          }
-        } else if (tool === 'zone_wall') {
-          const tile = newGrid.get(key);
-          if (tile) {
-            tile.zone = 'wall';
-            if (!tile.wallSegments) tile.wallSegments = [];
-            const next = hexes[i + 1];
-            const seg = next
-              ? getWallSegmentType(next.q - hex.q, next.r - hex.r)
-              : 'middle';
-            if (!tile.wallSegments.includes(seg)) tile.wallSegments.push(seg);
-            changed = true;
+        }
+      } else {
+        // For other tools, place on hexes
+        for (let i = 0; i < hexes.length; i++) {
+          const hex = hexes[i];
+          const key = `${hex.q},${hex.r}`;
+          
+          if (tool === 'bulldoze') {
+            if (bulldozeTile(newGrid, prev.gridSize, hex.q, hex.r)) {
+              changed = true;
+            }
+          } else if (tool === 'zone_moat') {
+            const tile = newGrid.get(key);
+            if (tile) {
+              tile.building = {
+                type: 'moat',
+                constructionProgress: 100,
+                powered: false,
+                watered: false,
+              };
+              tile.zone = 'moat';
+              changed = true;
+            }
+          } else if (tool === 'zone_land') {
+            const tile = newGrid.get(key);
+            if (tile) {
+              tile.building = {
+                type: 'grass',
+                constructionProgress: 100,
+                powered: false,
+                watered: false,
+              };
+              tile.zone = 'land';
+              changed = true;
+            }
           }
         }
       }
@@ -389,6 +383,7 @@ export function FortsProvider({
       return {
         ...prev,
         grid: newGrid,
+        walls: newWalls,
         stats: { 
           ...prev.stats, 
           ...stats,

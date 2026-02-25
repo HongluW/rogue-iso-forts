@@ -48,7 +48,6 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
         watered: false,
       },
       zone: 'none',
-      wallSegments: [],
     });
   }
   
@@ -56,6 +55,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     id: `fort-${Date.now()}`,
     fortName: fortName || 'New Fort',
     grid,
+    walls: new Set<string>(), // Initialize empty walls set
     gridSize: size,
     selectedTool: 'select',
     activePanel: 'none',
@@ -73,7 +73,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     month: 1,
     year: 1000,
     hour: 12,
-    gameVersion: 2, // Increment version for hex grid
+    gameVersion: 3, // Increment version for edge-based walls
   };
 }
 

@@ -47,22 +47,43 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
 // TILE & BUILDING
 // =============================================================================
 
-/** Wall segment on a hex: left_up = connects to NW neighbor, right_up = connects to NE, middle = horizontal (placeholder) */
-export type WallSegmentType = 'left_up' | 'right_up' | 'middle';
+/** Edge between two hexes - represented as normalized hex coordinates */
+export interface HexEdge {
+  q1: number;
+  r1: number;
+  q2: number;
+  r2: number;
+}
 
-/** Get wall segment type for direction from current hex to neighbor (dq, dr). NE=(1,-1)=right_up, NW=(0,-1)=left_up, E/W=middle. */
-export function getWallSegmentType(dq: number, dr: number): WallSegmentType {
-  if (dq === 1 && dr === -1) return 'right_up';
-  if (dq === 0 && dr === -1) return 'left_up';
-  if ((dq === 1 && dr === 0) || (dq === -1 && dr === 0)) return 'middle';
-  return 'middle'; // SW, SE fallback
+/** Normalize an edge so it always has a consistent representation (smaller hex first) */
+export function normalizeEdge(q1: number, r1: number, q2: number, r2: number): HexEdge {
+  // Sort by r first, then q, so the same edge always has the same representation
+  if (r1 < r2 || (r1 === r2 && q1 < q2)) {
+    return { q1, r1, q2, r2 };
+  }
+  return { q1: q2, r1: r2, q2: q1, r2: r1 };
+}
+
+/** Convert edge to string key for Map storage */
+export function edgeToKey(edge: HexEdge): string {
+  return `${edge.q1},${edge.r1}-${edge.q2},${edge.r2}`;
+}
+
+/** Get all edges between consecutive hexes in a line */
+export function getEdgesBetweenHexes(hexes: HexPosition[]): HexEdge[] {
+  const edges: HexEdge[] = [];
+  for (let i = 0; i < hexes.length - 1; i++) {
+    const hex1 = hexes[i];
+    const hex2 = hexes[i + 1];
+    edges.push(normalizeEdge(hex1.q, hex1.r, hex2.q, hex2.r));
+  }
+  return edges;
 }
 
 export interface Tile {
   building: Building;
-  zone: 'none' | 'moat' | 'land' | 'wall';
-  /** Wall segments on this hex (left-leaning, right-leaning, or horizontal placeholder) */
-  wallSegments?: WallSegmentType[];
+  zone: 'none' | 'moat' | 'land';
+  // Removed wallSegments - walls are now stored on edges in GameState
 }
 
 export interface Building {
@@ -100,6 +121,7 @@ export interface GameState {
   id: string;
   fortName: string;
   grid: Map<string, Tile>; // Hex grid using "q,r" as key
+  walls: Set<string>; // Wall edges using edgeToKey() as key
   gridSize: number; // Approximate radius/size of hex grid
   selectedTool: Tool;
   activePanel: 'none' | 'budget' | 'statistics' | 'settings';

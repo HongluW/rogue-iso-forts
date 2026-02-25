@@ -131,9 +131,12 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
     if (parsed?.grid && parsed?.gridSize) {
       // Convert grid array back to Map
       const grid = gridArrayToMap(parsed.grid);
+      // Convert walls array back to Set (or initialize empty Set if missing)
+      const walls = parsed.walls ? new Set(parsed.walls) : new Set<string>();
       return {
         ...parsed,
         grid,
+        walls,
       } as GameState;
     }
   } catch {
@@ -145,10 +148,11 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
 export function saveFortsStateToStorage(key: string, state: GameState): boolean {
   if (typeof window === 'undefined') return false;
   try {
-    // Convert Map to serializable format
+    // Convert Map and Set to serializable format
     const serializableState = {
       ...state,
       grid: gridMapToArray(state.grid),
+      walls: Array.from(state.walls || new Set<string>()), // Convert Set to array
     };
     const compressed = compressToUTF16(JSON.stringify(serializableState));
     localStorage.setItem(key, compressed);

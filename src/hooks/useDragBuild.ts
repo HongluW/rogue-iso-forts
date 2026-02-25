@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { HexPosition } from '@/games/forts/types';
 import { isDragBuildTool } from '@/games/forts/types';
-import { hexLineBetween, hexToKey } from '@/games/forts/lib/hexUtils';
+import { hexLineBetween, hexToKey, hexDistance } from '@/games/forts/lib/hexUtils';
 
 export interface UseDragBuildOptions {
   /** Current grid keys to filter valid hexes in the line */
@@ -101,7 +101,26 @@ export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
     setDragBuildCurrent(hexPos);
     const lineHexes = hexLineBetween(dragBuildStart.q, dragBuildStart.r, hexPos.q, hexPos.r);
     const validHexes = lineHexes.filter((h) => grid.has(hexToKey(h.q, h.r)));
-    setDragBuildPreview(validHexes);
+    
+    // Ensure consecutive hexes are actually neighbors (distance 1)
+    // This prevents invalid edges when the filter removes intermediate hexes
+    const consecutiveHexes: typeof validHexes = [];
+    for (const hex of validHexes) {
+      if (consecutiveHexes.length === 0) {
+        consecutiveHexes.push(hex);
+      } else {
+        const prev = consecutiveHexes[consecutiveHexes.length - 1];
+        const dist = hexDistance(prev.q, prev.r, hex.q, hex.r);
+        if (dist === 1) {
+          consecutiveHexes.push(hex);
+        } else {
+          // Gap in the line - stop here to keep edges valid
+          break;
+        }
+      }
+    }
+    
+    setDragBuildPreview(consecutiveHexes);
     return true;
   }, [dragBuildStart, dragBuildCurrent, mouseToHex, grid]);
 

@@ -52,9 +52,13 @@ function drawHexagon(
 const imageCache = new Map<string, HTMLImageElement>();
 
 function loadSpriteImage(src: string): Promise<HTMLImageElement> {
-  if (imageCache.has(src)) {
-    return Promise.resolve(imageCache.get(src)!);
+  const cached = imageCache.get(src);
+  if (cached && cached.complete && cached.naturalWidth > 0) {
+    return Promise.resolve(cached);
   }
+  
+  // Clear failed cache entry
+  imageCache.delete(src);
   
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -62,7 +66,10 @@ function loadSpriteImage(src: string): Promise<HTMLImageElement> {
       imageCache.set(src, img);
       resolve(img);
     };
-    img.onerror = reject;
+    img.onerror = (e) => {
+      console.error(`Failed to load image: ${src}`, e);
+      reject(e);
+    };
     img.src = src;
   });
 }
@@ -79,7 +86,7 @@ interface FortsCanvasProps {
 
 export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }: FortsCanvasProps) {
   const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
-  const { grid, gridSize, selectedTool } = state; // grid is now Map<string, Tile>
+  const { grid, gridSize, selectedTool } = state;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderPendingRef = useRef<number | null>(null);
@@ -95,8 +102,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const spritePack = useMemo(() => getActiveSpritePack(), []);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   
-  // Load sprite images and wall segment images (optional - don't block rendering)
-  const [wallImagesLoaded, setWallImagesLoaded] = useState(false);
+  // Load sprite images (optional - don't block rendering)
   useEffect(() => {
     if (!spritePack?.src) {
       setImagesLoaded(true);
@@ -108,10 +114,6 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           setImagesLoaded(true);
         });
     }
-    Promise.all([
-      loadSpriteImage('/forts/wall_left.png'),
-      loadSpriteImage('/forts/wall_right.png'),
-    ]).then(() => setWallImagesLoaded(true)).catch(() => setWallImagesLoaded(true));
   }, [spritePack]);
 
   // Update canvas size
@@ -579,39 +581,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           }
         }
         
-        // Draw wall segments (left-leaning, right-leaning, or middle placeholder)
-        if (tile.zone === 'wall' && tile.wallSegments?.length) {
-          const segW = HEX_SIZE * 1.8;
-          const segH = HEX_SIZE * 1.8;
-          for (const seg of tile.wallSegments) {
-            if (seg === 'left_up') {
-              const img = getCachedImage('/forts/wall_left.png');
-              if (img && wallImagesLoaded) {
-                ctx.drawImage(
-                  img,
-                  screenX - segW / 2, screenY - segH / 2,
-                  segW, segH
-                );
-              }
-            } else if (seg === 'right_up') {
-              const img = getCachedImage('/forts/wall_right.png');
-              if (img && wallImagesLoaded) {
-                ctx.drawImage(
-                  img,
-                  screenX - segW / 2, screenY - segH / 2,
-                  segW, segH
-                );
-              }
-            } else if (seg === 'middle') {
-              ctx.save();
-              ctx.fillStyle = '#2563eb';
-              ctx.beginPath();
-              ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.restore();
-            }
-          }
-        }
+        // Walls are now drawn on edges, not on hexes - see below
         
         // Draw selection highlight (hexagon outline)
         if (isSelected) {
@@ -636,17 +606,16 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       
       // Draw drag-build preview (glowing hexes along the line)
       if (dragBuild.dragBuildPreview.length > 0) {
-        // Determine preview color based on tool
-        let previewColor = '#2563eb'; // default blue
+        let previewColor = '#2563eb';
         let previewStroke = '#60a5fa';
         if (selectedTool === 'zone_moat') {
-          previewColor = '#2563eb'; // moat blue
+          previewColor = '#2563eb';
           previewStroke = '#93c5fd';
         } else if (selectedTool === 'zone_land') {
-          previewColor = '#9C7C3C'; // earth / yellowish brown
-          previewStroke = '#C4A574'; // lighter tan
+          previewColor = '#9C7C3C';
+          previewStroke = '#C4A574';
         } else if (selectedTool === 'zone_wall') {
-          previewColor = '#6b7280'; // stone gray
+          previewColor = '#6b7280';
           previewStroke = '#9ca3af';
         }
         
@@ -655,20 +624,6 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         for (const hex of dragBuild.dragBuildPreview) {
           const { screenX: px, screenY: py } = hexToScreen(hex.q, hex.r, 0, 0);
           
-          // Draw outer glow
-          ctx.save();
-          ctx.globalAlpha = previewAlpha * 0.3;
-          ctx.shadowColor = previewStroke;
-          ctx.shadowBlur = 15;
-          drawHexagon(ctx, px, py, {
-            top: previewColor,
-            left: previewColor,
-            right: previewColor,
-            stroke: previewStroke,
-          }, true);
-          ctx.restore();
-          
-          // Draw the glowing hex itself
           ctx.save();
           ctx.globalAlpha = previewAlpha;
           drawHexagon(ctx, px, py, {
@@ -679,7 +634,6 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           }, true);
           ctx.restore();
           
-          // Draw bright border
           ctx.save();
           ctx.globalAlpha = Math.min(previewAlpha + 0.2, 1);
           ctx.strokeStyle = previewStroke;
@@ -705,7 +659,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       ctx.restore();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, wallImagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
 
   return (
     <div
