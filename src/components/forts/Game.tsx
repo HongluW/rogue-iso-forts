@@ -61,38 +61,40 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
     );
   }
 
-  // Desktop layout
+  // Desktop layout: sidebar in flow so it pushes header and content
   return (
-    <div className="w-full h-full min-h-[720px] overflow-hidden bg-background flex relative">
-      {/* Sidebar positioned absolutely so it doesn't affect canvas centering */}
-      <div className={`absolute left-0 top-0 h-full z-40 transition-transform duration-300 ${
-        sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-      }`}>
-        <FortsSidebar 
-          onExit={onExit} 
-          isOpen={sidebarOpen}
-          onClose={() => setSidebarOpen(false)}
-        />
+    <div className="w-full h-full min-h-[720px] overflow-hidden bg-background flex flex-row">
+      {/* Sidebar: fixed width when open, 0 when collapsed so header/content push back */}
+      <div
+        className={`flex-shrink-0 h-full overflow-hidden transition-[width] duration-300 ease-in-out ${
+          sidebarOpen ? 'w-56' : 'w-0'
+        }`}
+      >
+        {sidebarOpen && (
+          <FortsSidebar
+            onExit={onExit}
+            isOpen={sidebarOpen}
+            onClose={() => setSidebarOpen(false)}
+          />
+        )}
       </div>
-      
-      {/* Hamburger menu button when sidebar is closed */}
-      {!sidebarOpen && (
-        <Button
-          onClick={() => setSidebarOpen(true)}
-          className="absolute top-4 left-4 z-50 bg-slate-900 hover:bg-slate-800 text-white border border-slate-700"
-          size="icon"
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-      )}
-      
-      {/* Main content area - always centered, not affected by sidebar */}
-      <div className="w-full h-full flex flex-col">
+
+      {/* Main content: takes remaining space, pushed right when sidebar is open */}
+      <div className="flex-1 min-w-0 h-full flex flex-col relative">
+        {!sidebarOpen && (
+          <Button
+            onClick={() => setSidebarOpen(true)}
+            className="absolute top-28 left-4 z-50 bg-slate-900 hover:bg-slate-800 text-white border border-slate-700"
+            size="icon"
+          >
+            <Menu className="w-5 h-5" />
+          </Button>
+        )}
         <FortsTopBar />
         <FortsStatsPanel />
         <div className="flex-1 relative overflow-hidden flex items-center justify-center">
-          <FortsCanvas 
-            selectedTile={selectedTile} 
+          <FortsCanvas
+            selectedTile={selectedTile}
             setSelectedTile={setSelectedTile}
           />
         </div>

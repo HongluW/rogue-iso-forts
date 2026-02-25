@@ -49,7 +49,7 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
 
 export interface Tile {
   building: Building;
-  zone: 'none' | 'moat' | 'land' | 'wall';
+  zone: 'none' | 'moat' | 'land' | 'wall' | 'start';
 }
 
 export interface Building {

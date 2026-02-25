@@ -50,6 +50,22 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     }
   }
 
+  // Placeholder starting area at center: 3x3 or 2x2 depending on map size
+  const startSize = size <= 8 ? 2 : 3;
+  const offset = Math.floor((startSize - 1) / 2); // 0 for 2x2, 1 for 3x3
+  const cx = Math.floor((size - 1) / 2);
+  const cy = Math.floor((size - 1) / 2);
+  for (let dy = 0; dy < startSize; dy++) {
+    for (let dx = 0; dx < startSize; dx++) {
+      const x = cx - offset + dx;
+      const y = cy - offset + dy;
+      if (x >= 0 && x < size && y >= 0 && y < size) {
+        const tile = grid.get(gridToKey(x, y))!;
+        tile.zone = 'start';
+      }
+    }
+  }
+
   return {
     id: `fort-${Date.now()}`,
     fortName: fortName || 'New Fort',

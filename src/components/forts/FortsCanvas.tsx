@@ -407,6 +407,8 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         const edgeVisibility = getMoatEdgeVisibility(x, y, gridSize, currentGrid, moatPreviewSet);
         if (building.type === 'moat') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#2563eb', stroke: '#1e40af' }, edgeVisibility);
+        } else if (tile.zone === 'start') {
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#7c3aed', stroke: '#5b21b6' }, edgeVisibility);
         } else if (tile.zone === 'wall') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#78716c', stroke: '#57534e' }, edgeVisibility);
         } else if (building.type === 'grass' || building.type === 'empty') {
