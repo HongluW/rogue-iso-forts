@@ -1,56 +1,34 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { HexPosition } from '@/games/forts/types';
+import type { GridPosition } from '@/games/forts/types';
 import { isDragBuildTool } from '@/games/forts/types';
-import { hexLineBetween, hexToKey, hexDistance } from '@/games/forts/lib/hexUtils';
+import { gridLineBetween, gridToKey } from '@/games/forts/lib/gridUtils';
 
 export interface UseDragBuildOptions {
-  /** Current grid keys to filter valid hexes in the line */
   grid: Map<string, unknown>;
-  /** Active tool; only line tools start drag-build */
   selectedTool: string;
-  /** Resolve mouse event to hex position (or null if off grid) */
-  mouseToHex: (e: React.MouseEvent | { clientX: number; clientY: number }) => HexPosition | null;
-  /** Commit the preview line (place tiles) */
-  placeMultipleTiles: (hexes: HexPosition[]) => void;
-  /** Called when drag-build is cancelled (Escape, right-click, mouse leave); caller should clear global drag state */
+  mouseToGrid: (e: React.MouseEvent | { clientX: number; clientY: number }) => GridPosition | null;
+  placeMultipleTiles: (tiles: GridPosition[]) => void;
   onCancel: () => void;
 }
 
 export interface UseDragBuildResult {
-  /** Hexes currently in the preview line */
-  dragBuildPreview: HexPosition[];
-  /** Whether a drag-build is in progress (for canvas to know if it should delegate move/up) */
+  dragBuildPreview: GridPosition[];
   isDragBuildingRef: React.MutableRefObject<boolean>;
-  /** Cancel current drag-build without placing; calls onCancel */
   cancelDragBuild: () => void;
-  /** Call from mouse down: returns true if drag-build started (left on line tool) or was cancelled (right-click) and caller should skip other handling */
   onMouseDown: (e: React.MouseEvent) => boolean;
-  /** Call from mouse move: returns true if drag-build is active and event was consumed (caller should skip pan) */
   onMouseMove: (e: React.MouseEvent) => boolean;
-  /** Call from mouse up: returns true if drag-build was active (placed or cleared); caller should skip single-click placement when true */
   onMouseUp: (e: React.MouseEvent) => boolean;
-  /** Call from mouse leave to cancel drag-build if active */
   onMouseLeave: () => void;
 }
 
-/**
- * Encapsulates drag-build (line-draw) input: start, update preview, commit or cancel.
- * Lives alongside other cursor/input logic (e.g. future usePan, useWheelZoom).
- */
 export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
-  const {
-    grid,
-    selectedTool,
-    mouseToHex,
-    placeMultipleTiles,
-    onCancel,
-  } = options;
+  const { grid, selectedTool, mouseToGrid, placeMultipleTiles, onCancel } = options;
 
-  const [dragBuildStart, setDragBuildStart] = useState<HexPosition | null>(null);
-  const [dragBuildCurrent, setDragBuildCurrent] = useState<HexPosition | null>(null);
-  const [dragBuildPreview, setDragBuildPreview] = useState<HexPosition[]>([]);
+  const [dragBuildStart, setDragBuildStart] = useState<GridPosition | null>(null);
+  const [dragBuildCurrent, setDragBuildCurrent] = useState<GridPosition | null>(null);
+  const [dragBuildPreview, setDragBuildPreview] = useState<GridPosition[]>([]);
   const isDragBuildingRef = useRef(false);
 
   const cancelDragBuild = useCallback(() => {
@@ -75,61 +53,37 @@ export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
 
   const onMouseDown = useCallback((e: React.MouseEvent): boolean => {
     if (e.button === 2) {
-      if (isDragBuildingRef.current) {
-        cancelDragBuild();
-        return true;
-      }
+      if (isDragBuildingRef.current) { cancelDragBuild(); return true; }
       return false;
     }
     if (e.button === 0 && isDragBuildTool(selectedTool)) {
-      const hexPos = mouseToHex(e);
-      if (hexPos) {
+      const pos = mouseToGrid(e);
+      if (pos) {
         isDragBuildingRef.current = true;
-        setDragBuildStart(hexPos);
-        setDragBuildCurrent(hexPos);
-        setDragBuildPreview([hexPos]);
+        setDragBuildStart(pos);
+        setDragBuildCurrent(pos);
+        setDragBuildPreview([pos]);
         return true;
       }
     }
     return false;
-  }, [selectedTool, mouseToHex, cancelDragBuild]);
+  }, [selectedTool, mouseToGrid, cancelDragBuild]);
 
   const onMouseMove = useCallback((e: React.MouseEvent): boolean => {
     if (!isDragBuildingRef.current || !dragBuildStart) return false;
-    const hexPos = mouseToHex(e);
-    if (!hexPos || (hexPos.q === dragBuildCurrent?.q && hexPos.r === dragBuildCurrent?.r)) return true;
-    setDragBuildCurrent(hexPos);
-    const lineHexes = hexLineBetween(dragBuildStart.q, dragBuildStart.r, hexPos.q, hexPos.r);
-    const validHexes = lineHexes.filter((h) => grid.has(hexToKey(h.q, h.r)));
-    
-    // Ensure consecutive hexes are actually neighbors (distance 1)
-    // This prevents invalid edges when the filter removes intermediate hexes
-    const consecutiveHexes: typeof validHexes = [];
-    for (const hex of validHexes) {
-      if (consecutiveHexes.length === 0) {
-        consecutiveHexes.push(hex);
-      } else {
-        const prev = consecutiveHexes[consecutiveHexes.length - 1];
-        const dist = hexDistance(prev.q, prev.r, hex.q, hex.r);
-        if (dist === 1) {
-          consecutiveHexes.push(hex);
-        } else {
-          // Gap in the line - stop here to keep edges valid
-          break;
-        }
-      }
-    }
-    
-    setDragBuildPreview(consecutiveHexes);
+    const pos = mouseToGrid(e);
+    if (!pos || (pos.x === dragBuildCurrent?.x && pos.y === dragBuildCurrent?.y)) return true;
+    setDragBuildCurrent(pos);
+    const line = gridLineBetween(dragBuildStart.x, dragBuildStart.y, pos.x, pos.y);
+    const valid = line.filter(p => grid.has(gridToKey(p.x, p.y)));
+    setDragBuildPreview(valid);
     return true;
-  }, [dragBuildStart, dragBuildCurrent, mouseToHex, grid]);
+  }, [dragBuildStart, dragBuildCurrent, mouseToGrid, grid]);
 
   const onMouseUp = useCallback((e: React.MouseEvent): boolean => {
     if (e.button !== 0) return false;
     if (!isDragBuildingRef.current) return false;
-    if (dragBuildPreview.length > 0) {
-      placeMultipleTiles(dragBuildPreview);
-    }
+    if (dragBuildPreview.length > 0) placeMultipleTiles(dragBuildPreview);
     isDragBuildingRef.current = false;
     setDragBuildStart(null);
     setDragBuildCurrent(null);
@@ -142,13 +96,5 @@ export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
     if (isDragBuildingRef.current) cancelDragBuild();
   }, [cancelDragBuild]);
 
-  return {
-    dragBuildPreview,
-    isDragBuildingRef,
-    cancelDragBuild,
-    onMouseDown,
-    onMouseMove,
-    onMouseUp,
-    onMouseLeave,
-  };
+  return { dragBuildPreview, isDragBuildingRef, cancelDragBuild, onMouseDown, onMouseMove, onMouseUp, onMouseLeave };
 }

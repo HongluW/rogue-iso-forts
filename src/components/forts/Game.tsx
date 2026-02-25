@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useForts } from '@/context/FortsContext';
-import { Tool, HexPosition } from '@/games/forts/types';
+import { Tool, GridPosition } from '@/games/forts/types';
 import { useMobile } from '@/hooks/useMobile';
 import { FortsCanvas } from './FortsCanvas';
 import { FortsSidebar } from './FortsSidebar';
@@ -13,7 +13,7 @@ import { Menu } from 'lucide-react';
 
 export default function FortsGame({ onExit }: { onExit?: () => void }) {
   const { state, setTool, setActivePanel, placeAtTile, toggleFreeBuilder } = useForts();
-  const [selectedTile, setSelectedTile] = useState<HexPosition | null>(null);
+  const [selectedTile, setSelectedTile] = useState<GridPosition | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isMobileDevice, isSmallScreen } = useMobile();
   const isMobile = isMobileDevice || isSmallScreen;

@@ -3,7 +3,7 @@
  */
 
 import { Building, BuildingType } from './buildings';
-import { HexPosition } from '../lib/hexUtils';
+import { GridPosition } from '../lib/gridUtils';
 
 // =============================================================================
 // TOOL TYPES
@@ -47,43 +47,9 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
 // TILE & BUILDING
 // =============================================================================
 
-/** Edge between two hexes - represented as normalized hex coordinates */
-export interface HexEdge {
-  q1: number;
-  r1: number;
-  q2: number;
-  r2: number;
-}
-
-/** Normalize an edge so it always has a consistent representation (smaller hex first) */
-export function normalizeEdge(q1: number, r1: number, q2: number, r2: number): HexEdge {
-  // Sort by r first, then q, so the same edge always has the same representation
-  if (r1 < r2 || (r1 === r2 && q1 < q2)) {
-    return { q1, r1, q2, r2 };
-  }
-  return { q1: q2, r1: r2, q2: q1, r2: r1 };
-}
-
-/** Convert edge to string key for Map storage */
-export function edgeToKey(edge: HexEdge): string {
-  return `${edge.q1},${edge.r1}-${edge.q2},${edge.r2}`;
-}
-
-/** Get all edges between consecutive hexes in a line */
-export function getEdgesBetweenHexes(hexes: HexPosition[]): HexEdge[] {
-  const edges: HexEdge[] = [];
-  for (let i = 0; i < hexes.length - 1; i++) {
-    const hex1 = hexes[i];
-    const hex2 = hexes[i + 1];
-    edges.push(normalizeEdge(hex1.q, hex1.r, hex2.q, hex2.r));
-  }
-  return edges;
-}
-
 export interface Tile {
   building: Building;
-  zone: 'none' | 'moat' | 'land';
-  // Removed wallSegments - walls are now stored on edges in GameState
+  zone: 'none' | 'moat' | 'land' | 'wall';
 }
 
 export interface Building {
@@ -98,20 +64,19 @@ export interface Building {
 // =============================================================================
 
 export interface FortStats {
-  population: number; // Total garrison size
-  defense: number; // Total defense value
-  capacity: number; // Total capacity
+  population: number;
+  defense: number;
+  capacity: number;
   money: number;
   income: number;
   expenses: number;
 }
 
 // =============================================================================
-// HEX POSITION
+// GRID POSITION
 // =============================================================================
 
-// Re-export HexPosition for convenience
-export type { HexPosition } from '../lib/hexUtils';
+export type { GridPosition } from '../lib/gridUtils';
 
 // =============================================================================
 // GAME STATE
@@ -120,9 +85,8 @@ export type { HexPosition } from '../lib/hexUtils';
 export interface GameState {
   id: string;
   fortName: string;
-  grid: Map<string, Tile>; // Hex grid using "q,r" as key
-  walls: Set<string>; // Wall edges using edgeToKey() as key
-  gridSize: number; // Approximate radius/size of hex grid
+  grid: Map<string, Tile>; // Square grid using "x,y" as key
+  gridSize: number; // Width/height of square grid
   selectedTool: Tool;
   activePanel: 'none' | 'budget' | 'statistics' | 'settings';
   speed: 0 | 1 | 2 | 3;
@@ -137,7 +101,6 @@ export interface GameState {
 
 // =============================================================================
 // DRAG-BUILD TOOLS
-// Tools that support click-and-drag line building
 // =============================================================================
 
 export const DRAG_BUILD_TOOLS: Set<Tool> = new Set([
