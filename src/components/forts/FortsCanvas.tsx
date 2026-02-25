@@ -95,24 +95,23 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const spritePack = useMemo(() => getActiveSpritePack(), []);
   const [imagesLoaded, setImagesLoaded] = useState(false);
   
-  // Load sprite images (optional - don't block rendering)
+  // Load sprite images and wall segment images (optional - don't block rendering)
+  const [wallImagesLoaded, setWallImagesLoaded] = useState(false);
   useEffect(() => {
     if (!spritePack?.src) {
-      setImagesLoaded(true); // No sprites to load, allow rendering
-      return;
+      setImagesLoaded(true);
+    } else {
+      loadSpriteImage(spritePack.src)
+        .then(() => setImagesLoaded(true))
+        .catch((e) => {
+          console.error('Failed to load sprite image:', e);
+          setImagesLoaded(true);
+        });
     }
-    
-    const loadImages = async () => {
-      try {
-        await loadSpriteImage(spritePack.src);
-        setImagesLoaded(true);
-      } catch (e) {
-        console.error('Failed to load sprite image:', e);
-        setImagesLoaded(true); // Still render even if image fails
-      }
-    };
-    
-    loadImages();
+    Promise.all([
+      loadSpriteImage('/forts/wall_left.png'),
+      loadSpriteImage('/forts/wall_right.png'),
+    ]).then(() => setWallImagesLoaded(true)).catch(() => setWallImagesLoaded(true));
   }, [spritePack]);
 
   // Update canvas size
@@ -580,10 +579,44 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           }
         }
         
+        // Draw wall segments (left-leaning, right-leaning, or middle placeholder)
+        if (tile.zone === 'wall' && tile.wallSegments?.length) {
+          const segW = HEX_SIZE * 1.8;
+          const segH = HEX_SIZE * 1.8;
+          for (const seg of tile.wallSegments) {
+            if (seg === 'left_up') {
+              const img = getCachedImage('/forts/wall_left.png');
+              if (img && wallImagesLoaded) {
+                ctx.drawImage(
+                  img,
+                  screenX - segW / 2, screenY - segH / 2,
+                  segW, segH
+                );
+              }
+            } else if (seg === 'right_up') {
+              const img = getCachedImage('/forts/wall_right.png');
+              if (img && wallImagesLoaded) {
+                ctx.drawImage(
+                  img,
+                  screenX - segW / 2, screenY - segH / 2,
+                  segW, segH
+                );
+              }
+            } else if (seg === 'middle') {
+              ctx.save();
+              ctx.fillStyle = '#2563eb';
+              ctx.beginPath();
+              ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+        }
+        
         // Draw selection highlight (hexagon outline)
         if (isSelected) {
-          ctx.strokeStyle = '#ffff00';
-          ctx.lineWidth = 3;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.lineWidth = 2;
           const size = HEX_SIZE;
           ctx.beginPath();
           for (let i = 0; i < 6; i++) {
@@ -612,6 +645,9 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         } else if (selectedTool === 'zone_land') {
           previewColor = '#9C7C3C'; // earth / yellowish brown
           previewStroke = '#C4A574'; // lighter tan
+        } else if (selectedTool === 'zone_wall') {
+          previewColor = '#6b7280'; // stone gray
+          previewStroke = '#9ca3af';
         }
         
         const previewAlpha = 0.7;
@@ -669,7 +705,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       ctx.restore();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, wallImagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
 
   return (
     <div

@@ -16,7 +16,8 @@ export type Tool =
   
   // Terrain
   | 'zone_moat'
-  | 'zone_land';
+  | 'zone_land'
+  | 'zone_wall';
 
 // =============================================================================
 // TOOL INFO
@@ -39,15 +40,29 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
   bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools' },
   zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain' },
   zone_land: { name: 'Land', cost: 0, description: 'Place land (drag to draw line)', category: 'terrain' },
+  zone_wall: { name: 'Wall', cost: 3, description: 'Stone wall (drag to draw line)', category: 'terrain' },
 };
 
 // =============================================================================
 // TILE & BUILDING
 // =============================================================================
 
+/** Wall segment on a hex: left_up = connects to NW neighbor, right_up = connects to NE, middle = horizontal (placeholder) */
+export type WallSegmentType = 'left_up' | 'right_up' | 'middle';
+
+/** Get wall segment type for direction from current hex to neighbor (dq, dr). NE=(1,-1)=right_up, NW=(0,-1)=left_up, E/W=middle. */
+export function getWallSegmentType(dq: number, dr: number): WallSegmentType {
+  if (dq === 1 && dr === -1) return 'right_up';
+  if (dq === 0 && dr === -1) return 'left_up';
+  if ((dq === 1 && dr === 0) || (dq === -1 && dr === 0)) return 'middle';
+  return 'middle'; // SW, SE fallback
+}
+
 export interface Tile {
   building: Building;
-  zone: 'none' | 'moat' | 'land';
+  zone: 'none' | 'moat' | 'land' | 'wall';
+  /** Wall segments on this hex (left-leaning, right-leaning, or horizontal placeholder) */
+  wallSegments?: WallSegmentType[];
 }
 
 export interface Building {
@@ -106,6 +121,7 @@ export interface GameState {
 export const DRAG_BUILD_TOOLS: Set<Tool> = new Set([
   'zone_moat',
   'zone_land',
+  'zone_wall',
 ]);
 
 export function isDragBuildTool(tool: Tool): boolean {

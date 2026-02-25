@@ -48,6 +48,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
         watered: false,
       },
       zone: 'none',
+      wallSegments: [],
     });
   }
   
@@ -125,7 +126,8 @@ export function bulldozeTile(
     powered: false,
     watered: false,
   };
-  
+  tile.zone = 'none';
+  tile.wallSegments = [];
   return true;
 }
 

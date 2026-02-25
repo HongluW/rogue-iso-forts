@@ -9,7 +9,7 @@ import { X, Menu, LogOut, Sparkles } from 'lucide-react';
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
   tools: ['select', 'bulldoze'],
-  terrain: ['zone_moat', 'zone_land'],
+  terrain: ['zone_moat', 'zone_land', 'zone_wall'],
 };
 
 export function FortsSidebar({ 

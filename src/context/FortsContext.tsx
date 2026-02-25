@@ -8,6 +8,7 @@ import {
   BuildingType,
   FortStats,
   TOOL_INFO,
+  getWallSegmentType,
 } from '@/games/forts/types';
 import {
   createInitialGameState,
@@ -216,7 +217,11 @@ export function FortsProvider({
       // Create new grid map
       const newGrid = new Map<string, Tile>();
       for (const [key, tile] of prev.grid.entries()) {
-        newGrid.set(key, { ...tile, building: { ...tile.building } });
+        newGrid.set(key, {
+          ...tile,
+          building: { ...tile.building },
+          wallSegments: tile.wallSegments ? [...tile.wallSegments] : [],
+        });
       }
       
       const tool = prev.selectedTool;
@@ -282,6 +287,23 @@ export function FortsProvider({
             },
           };
         }
+      } else if (tool === 'zone_wall') {
+        const tile = newGrid.get(key);
+        if (tile) {
+          tile.zone = 'wall';
+          if (!tile.wallSegments) tile.wallSegments = [];
+          if (!tile.wallSegments.includes('middle')) tile.wallSegments.push('middle');
+          const stats = calculateFortStats(newGrid, prev.gridSize);
+          return {
+            ...prev,
+            grid: newGrid,
+            stats: {
+              ...prev.stats,
+              ...stats,
+              money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost),
+            },
+          };
+        }
       }
       
       return prev;
@@ -305,12 +327,17 @@ export function FortsProvider({
       // Create new grid map
       const newGrid = new Map<string, Tile>();
       for (const [key, tile] of prev.grid.entries()) {
-        newGrid.set(key, { ...tile, building: { ...tile.building } });
+        newGrid.set(key, {
+          ...tile,
+          building: { ...tile.building },
+          wallSegments: tile.wallSegments ? [...tile.wallSegments] : [],
+        });
       }
       
       let changed = false;
       
-      for (const hex of hexes) {
+      for (let i = 0; i < hexes.length; i++) {
+        const hex = hexes[i];
         const key = `${hex.q},${hex.r}`;
         
         if (tool === 'bulldoze') {
@@ -339,6 +366,18 @@ export function FortsProvider({
               watered: false,
             };
             tile.zone = 'land';
+            changed = true;
+          }
+        } else if (tool === 'zone_wall') {
+          const tile = newGrid.get(key);
+          if (tile) {
+            tile.zone = 'wall';
+            if (!tile.wallSegments) tile.wallSegments = [];
+            const next = hexes[i + 1];
+            const seg = next
+              ? getWallSegmentType(next.q - hex.q, next.r - hex.r)
+              : 'middle';
+            if (!tile.wallSegments.includes(seg)) tile.wallSegments.push(seg);
             changed = true;
           }
         }
