@@ -39,6 +39,88 @@ function drawDiamond(
   }
 }
 
+// Draw isometric diamond with per-edge stroke (for moat: hide edge if neighbor is moat)
+// Each flag controls exactly one edge of the isometric diamond:
+//   [0] Top→Right  (shared with neighbor y-1)
+//   [1] Right→Bottom (shared with neighbor x+1)
+//   [2] Bottom→Left  (shared with neighbor y+1)
+//   [3] Left→Top     (shared with neighbor x-1)
+function drawDiamondWithEdgeStrokes(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  colors: { top: string; stroke: string },
+  drawEdge: [boolean, boolean, boolean, boolean]
+) {
+  const hw = TILE_WIDTH / 2;
+  const hh = TILE_HEIGHT / 2;
+  ctx.fillStyle = colors.top;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - hh);
+  ctx.lineTo(cx + hw, cy);
+  ctx.lineTo(cx, cy + hh);
+  ctx.lineTo(cx - hw, cy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = colors.stroke;
+  ctx.lineWidth = 1;
+  if (drawEdge[0]) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - hh);
+    ctx.lineTo(cx + hw, cy);
+    ctx.stroke();
+  }
+  if (drawEdge[1]) {
+    ctx.beginPath();
+    ctx.moveTo(cx + hw, cy);
+    ctx.lineTo(cx, cy + hh);
+    ctx.stroke();
+  }
+  if (drawEdge[2]) {
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + hh);
+    ctx.lineTo(cx - hw, cy);
+    ctx.stroke();
+  }
+  if (drawEdge[3]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - hw, cy);
+    ctx.lineTo(cx, cy - hh);
+    ctx.stroke();
+  }
+}
+
+// Neighbors in order: [0] top (y-1), [1] right (x+1), [2] bottom/lower (y+1), [3] left (x-1).
+// We hide an edge when the neighbor in that direction is moat or in moat preview (both sides).
+function isMoatOrPreview(
+  nx: number,
+  ny: number,
+  gridSize: number,
+  grid: Map<string, Tile>,
+  previewSet: Set<string>
+): boolean {
+  if (nx < 0 || nx >= gridSize || ny < 0 || ny >= gridSize) return false;
+  const key = gridToKey(nx, ny);
+  const tile = grid.get(key);
+  const isMoat = tile ? (tile.building?.type === 'moat' || tile.zone === 'moat') : false;
+  return isMoat || previewSet.has(key);
+}
+
+function getMoatEdgeVisibility(
+  x: number,
+  y: number,
+  gridSize: number,
+  grid: Map<string, Tile>,
+  previewSet: Set<string>
+): [boolean, boolean, boolean, boolean] {
+  // Explicit per-edge: draw edge only when neighbor is NOT moat/preview
+  const top = !isMoatOrPreview(x, y - 1, gridSize, grid, previewSet);
+  const right = !isMoatOrPreview(x + 1, y, gridSize, grid, previewSet);
+  const bottom = !isMoatOrPreview(x, y + 1, gridSize, grid, previewSet); // "lower" connected
+  const left = !isMoatOrPreview(x - 1, y, gridSize, grid, previewSet);
+  return [top, right, bottom, left];
+}
+
 // Simple image cache
 const imageCache = new Map<string, HTMLImageElement>();
 
@@ -300,6 +382,11 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
 
       // Build render queue sorted by depth (y + x for isometric)
       const currentGrid = latestStateRef.current?.grid || grid;
+      const moatPreviewSet = new Set(
+        selectedTool === 'zone_moat' && dragBuild.dragBuildPreview.length > 0
+          ? dragBuild.dragBuildPreview.map((p) => gridToKey(p.x, p.y))
+          : []
+      );
       type RI = { x: number; y: number; tile: Tile; depth: number };
       const rq: RI[] = [];
 
@@ -316,15 +403,16 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         const building = tile.building;
         const isSelected = selectedTile?.x === x && selectedTile?.y === y;
 
-        // Base tile color
+        // Base tile color (all tiles use edge visibility so grid lines hide on both sides between moat blocks)
+        const edgeVisibility = getMoatEdgeVisibility(x, y, gridSize, currentGrid, moatPreviewSet);
         if (building.type === 'moat') {
-          drawDiamond(ctx, screenX, screenY, { top: '#2563eb', stroke: '#1e40af' });
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#2563eb', stroke: '#1e40af' }, edgeVisibility);
         } else if (tile.zone === 'wall') {
-          drawDiamond(ctx, screenX, screenY, { top: '#78716c', stroke: '#57534e' });
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#78716c', stroke: '#57534e' }, edgeVisibility);
         } else if (building.type === 'grass' || building.type === 'empty') {
-          drawDiamond(ctx, screenX, screenY, { top: '#4a7c3f', stroke: '#2d4a26' });
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#4a7c3f', stroke: '#2d4a26' }, edgeVisibility);
         } else {
-          drawDiamond(ctx, screenX, screenY, { top: '#6b7280', stroke: '#374151' });
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#6b7280', stroke: '#374151' }, edgeVisibility);
         }
 
         // Sprites for non-base buildings
@@ -373,22 +461,29 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           const { screenX: px, screenY: py } = gridToScreen(pos.x, pos.y);
           ctx.save();
           ctx.globalAlpha = 0.7;
-          drawDiamond(ctx, px, py, { top: previewColor, stroke: previewStroke });
+          if (selectedTool === 'zone_moat') {
+            const edgeVisibility = getMoatEdgeVisibility(pos.x, pos.y, gridSize, currentGrid, moatPreviewSet);
+            drawDiamondWithEdgeStrokes(ctx, px, py, { top: previewColor, stroke: previewStroke }, edgeVisibility);
+          } else {
+            drawDiamond(ctx, px, py, { top: previewColor, stroke: previewStroke });
+          }
           ctx.restore();
-          ctx.save();
-          ctx.globalAlpha = 0.9;
-          ctx.strokeStyle = previewStroke;
-          ctx.lineWidth = 2;
-          const hw = TILE_WIDTH / 2;
-          const hh = TILE_HEIGHT / 2;
-          ctx.beginPath();
-          ctx.moveTo(px, py - hh);
-          ctx.lineTo(px + hw, py);
-          ctx.lineTo(px, py + hh);
-          ctx.lineTo(px - hw, py);
-          ctx.closePath();
-          ctx.stroke();
-          ctx.restore();
+          if (selectedTool !== 'zone_moat') {
+            ctx.save();
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = previewStroke;
+            ctx.lineWidth = 2;
+            const hw = TILE_WIDTH / 2;
+            const hh = TILE_HEIGHT / 2;
+            ctx.beginPath();
+            ctx.moveTo(px, py - hh);
+            ctx.lineTo(px + hw, py);
+            ctx.lineTo(px, py + hh);
+            ctx.lineTo(px - hw, py);
+            ctx.closePath();
+            ctx.stroke();
+            ctx.restore();
+          }
         }
       }
 
