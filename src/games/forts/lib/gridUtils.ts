@@ -48,10 +48,13 @@ export function screenToGrid(
   worldY += viewCenterY;
 
   // Step 3: Reverse isometric projection
+  // Tile (x,y) center maps to gx=2x, gy=2y, with tile spanning [2x-1, 2x+1].
+  // floor((gx+1)/2) correctly maps this range to x (floor(gx/2) was off by one
+  // for the upper half of each diamond).
   const gx = worldX / (TILE_WIDTH / 2) + worldY / (TILE_HEIGHT / 2);
   const gy = worldY / (TILE_HEIGHT / 2) - worldX / (TILE_WIDTH / 2);
 
-  return { x: Math.floor(gx / 2), y: Math.floor(gy / 2) };
+  return { x: Math.floor((gx + 1) / 2), y: Math.floor((gy + 1) / 2) };
 }
 
 /**
