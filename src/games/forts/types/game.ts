@@ -34,12 +34,15 @@ export type Tool =
 // TOOL INFO
 // =============================================================================
 
+export type ToolTier = 'basic' | 'unlock';
+
 export interface ToolInfo {
   name: string;
   cost: number;
   description: string;
   size?: { width: number; height: number };
   category: ToolCategory;
+  tier: ToolTier;
 }
 
 export type ToolCategory =
@@ -51,20 +54,22 @@ export type ToolCategory =
   | 'utils';
 
 export const TOOL_INFO: Record<Tool, ToolInfo> = {
-  select: { name: 'Select', cost: 0, description: 'Select tiles', category: 'tools' },
-  bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools' },
-  bulldoze_all: { name: 'Bulldoze All', cost: 0, description: 'Clear everything except main home (Free Builder only)', category: 'tools' },
-  zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain' },
-  zone_land: { name: 'Land', cost: 0, description: 'Place land (drag to draw line)', category: 'terrain' },
-  zone_wall: { name: 'Wall', cost: 3, description: 'Stone wall (drag to draw line)', category: 'wall' },
-  build_tower: { name: 'Tower', cost: 15, description: 'Defense tower', category: 'buildings' },
-  build_barbican: { name: 'Barbican', cost: 25, description: 'Gatehouse defense', category: 'buildings' },
-  build_gate: { name: 'Gate', cost: 10, description: 'Fortified entrance', category: 'buildings' },
-  build_bridge: { name: 'Bridge', cost: 8, description: 'Bridge over moat', category: 'utils' },
-  build_machicolations: { name: 'Machicolations', cost: 12, description: 'Wall defense', category: 'walls_defense' },
-  build_balistraria: { name: 'Balistraria', cost: 10, description: 'Ballista opening', category: 'walls_defense' },
-  build_crossbow_slit: { name: 'Cross bow slit', cost: 6, description: 'Crossbow opening', category: 'walls_defense' },
-  build_longbow_slit: { name: 'Longbow slit', cost: 6, description: 'Longbow opening', category: 'walls_defense' },
+  // Basic tier
+  select: { name: 'Select', cost: 0, description: 'Select tiles', category: 'tools', tier: 'basic' },
+  bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools', tier: 'basic' },
+  bulldoze_all: { name: 'Bulldoze All', cost: 0, description: 'Clear everything except main home (Free Builder only)', category: 'tools', tier: 'basic' },
+  zone_wall: { name: 'Wall', cost: 3, description: 'Stone wall (drag to draw line)', category: 'wall', tier: 'basic' },
+  build_tower: { name: 'Tower', cost: 15, description: 'Defense tower', category: 'buildings', tier: 'basic' },
+  build_gate: { name: 'Gate', cost: 10, description: 'Fortified entrance', category: 'buildings', tier: 'basic' },
+  // Unlock tier
+  zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain', tier: 'unlock' },
+  zone_land: { name: 'Land', cost: 0, description: 'Place land (drag to draw line)', category: 'terrain', tier: 'unlock' },
+  build_barbican: { name: 'Barbican', cost: 25, description: 'Gatehouse defense', category: 'buildings', tier: 'unlock' },
+  build_bridge: { name: 'Bridge', cost: 8, description: 'Bridge over moat', category: 'utils', tier: 'unlock' },
+  build_machicolations: { name: 'Machicolations', cost: 12, description: 'Wall defense', category: 'walls_defense', tier: 'unlock' },
+  build_balistraria: { name: 'Balistraria', cost: 10, description: 'Ballista opening', category: 'walls_defense', tier: 'unlock' },
+  build_crossbow_slit: { name: 'Cross bow slit', cost: 6, description: 'Crossbow opening', category: 'walls_defense', tier: 'unlock' },
+  build_longbow_slit: { name: 'Longbow slit', cost: 6, description: 'Longbow opening', category: 'walls_defense', tier: 'unlock' },
 };
 
 // =============================================================================

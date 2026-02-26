@@ -28,25 +28,30 @@ export type BuildingType =
 // BUILDING STATS
 // =============================================================================
 
+export type BuildingTier = 'basic' | 'unlock';
+
 export interface BuildingStats {
   cost: number;
-  defense?: number; // Defense value for walls/towers
-  capacity?: number; // Capacity for barracks, storage, etc.
+  defense?: number;
+  capacity?: number;
   description: string;
   size?: { width: number; height: number };
+  tier: BuildingTier;
 }
 
 export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
-  empty: { cost: 0, description: 'Empty space' },
-  grass: { cost: 0, description: 'Grass' },
-  moat: { cost: 5, description: 'Moat - water defense' },
-  tower: { cost: 15, defense: 3, description: 'Defense tower' },
-  barbican: { cost: 25, defense: 5, description: 'Barbican - gatehouse defense' },
-  gate: { cost: 10, defense: 1, description: 'Gate - fortified entrance' },
-  gatehouse: { cost: 10, defense: 3, description: 'Gate on top of tower' },
-  bridge: { cost: 8, description: 'Bridge over moat' },
-  machicolations: { cost: 12, defense: 2, description: 'Machicolations' },
-  balistraria: { cost: 10, defense: 2, description: 'Balistraria' },
-  crossbow_slit: { cost: 6, defense: 1, description: 'Cross bow slit' },
-  longbow_slit: { cost: 6, defense: 1, description: 'Longbow slit' },
+  // Basic tier
+  empty: { cost: 0, description: 'Empty space', tier: 'basic' },
+  grass: { cost: 0, description: 'Grass', tier: 'basic' },
+  tower: { cost: 15, defense: 3, description: 'Defense tower', tier: 'basic' },
+  gate: { cost: 10, defense: 1, description: 'Gate - fortified entrance', tier: 'basic' },
+  gatehouse: { cost: 10, defense: 3, description: 'Gate on top of tower', tier: 'basic' },
+  // Unlock tier
+  moat: { cost: 5, description: 'Moat - water defense', tier: 'unlock' },
+  barbican: { cost: 25, defense: 5, description: 'Barbican - gatehouse defense', tier: 'unlock' },
+  bridge: { cost: 8, description: 'Bridge over moat', tier: 'unlock' },
+  machicolations: { cost: 12, defense: 2, description: 'Machicolations', tier: 'unlock' },
+  balistraria: { cost: 10, defense: 2, description: 'Balistraria', tier: 'unlock' },
+  crossbow_slit: { cost: 6, defense: 1, description: 'Cross bow slit', tier: 'unlock' },
+  longbow_slit: { cost: 6, defense: 1, description: 'Longbow slit', tier: 'unlock' },
 };
