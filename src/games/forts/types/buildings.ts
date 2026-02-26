@@ -17,7 +17,12 @@ export type BuildingType =
   | 'barbican'
   | 'gate'
   | 'gatehouse'
-  | 'bridge';
+  | 'bridge'
+  // Embrasure (walls defense)
+  | 'machicolations'
+  | 'balistraria'
+  | 'crossbow_slit'
+  | 'longbow_slit';
 
 // =============================================================================
 // BUILDING STATS
@@ -40,4 +45,8 @@ export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
   gate: { cost: 10, defense: 1, description: 'Gate - fortified entrance' },
   gatehouse: { cost: 10, defense: 3, description: 'Gate on top of tower' },
   bridge: { cost: 8, description: 'Bridge over moat' },
+  machicolations: { cost: 12, defense: 2, description: 'Machicolations' },
+  balistraria: { cost: 10, defense: 2, description: 'Balistraria' },
+  crossbow_slit: { cost: 6, defense: 1, description: 'Cross bow slit' },
+  longbow_slit: { cost: 6, defense: 1, description: 'Longbow slit' },
 };

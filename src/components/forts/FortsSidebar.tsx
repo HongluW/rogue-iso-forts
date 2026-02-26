@@ -5,6 +5,7 @@ import { useForts } from '@/context/FortsContext';
 import { Tool, TOOL_INFO } from '@/games/forts/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { ExpandableCategoryPanel, type ExpandableCategoryItem } from '@/components/ui/expandable-category-panel';
 import { X, LogOut } from 'lucide-react';
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
@@ -14,6 +15,13 @@ const TOOL_CATEGORIES: Record<string, Tool[]> = {
   buildings: ['build_tower', 'build_barbican', 'build_gate'],
   utils: ['build_bridge'],
 };
+
+const EMBRASURE_ITEMS: ExpandableCategoryItem[] = [
+  { id: 'build_machicolations', label: 'Machicolations', cost: 12 },
+  { id: 'build_balistraria', label: 'Balistraria', cost: 10 },
+  { id: 'build_crossbow_slit', label: 'Cross bow slit', cost: 6 },
+  { id: 'build_longbow_slit', label: 'Longbow slit', cost: 6 },
+];
 
 export function FortsSidebar({ 
   onExit, 
@@ -59,7 +67,7 @@ export function FortsSidebar({
 
       {/* Tools */}
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-6">
+        <div className="p-4 space-y-6 relative">
           {Object.entries(TOOL_CATEGORIES).map(([category, tools]) => (
             <div key={category}>
               <h3 className="text-white/40 text-xs uppercase tracking-wider mb-2">
@@ -73,13 +81,8 @@ export function FortsSidebar({
                     <Button
                       key={tool}
                       onClick={() => {
-                        // Toggle: if already selected, deselect (set to 'select')
-                        // Otherwise, select the tool
-                        if (isSelected) {
-                          setTool('select');
-                        } else {
-                          setTool(tool);
-                        }
+                        if (isSelected) setTool('select');
+                        else setTool(tool);
                       }}
                       variant={isSelected ? 'default' : 'ghost'}
                       className={`w-full justify-start text-left ${
@@ -100,6 +103,18 @@ export function FortsSidebar({
                     </Button>
                   );
                 })}
+                {/* Embrasure: under Wall only, collapsible panel to the right */}
+                {category === 'wall' && (
+                  <ExpandableCategoryPanel
+                    title="Embrasure"
+                    items={EMBRASURE_ITEMS.map((item) => ({
+                      ...item,
+                      disabled: !freeBuilderMode && (TOOL_INFO[item.id as Tool]?.cost ?? 0) > stats.money,
+                    }))}
+                    selectedId={selectedTool}
+                    onSelectItem={(id) => setTool(id as Tool)}
+                  />
+                )}
               </div>
             </div>
           ))}

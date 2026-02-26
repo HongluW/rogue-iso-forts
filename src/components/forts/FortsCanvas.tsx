@@ -422,18 +422,21 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#6b7280', stroke: '#374151' }, edgeVisibility);
         }
 
-        // Building overlay: tower/barbican/gate/gatehouse/bridge on top of base so their colors show
-        if (building.type === 'tower' || building.type === 'barbican' || building.type === 'gate' || building.type === 'gatehouse' || building.type === 'bridge') {
-          const overlayColors =
-            building.type === 'tower'
-              ? { top: '#d97706', stroke: '#b45309' }
-              : building.type === 'barbican'
-                ? { top: '#b91c1c', stroke: '#991b1b' }
-                : building.type === 'gatehouse'
-                  ? { top: '#1e3a5f', stroke: '#0f172a' }
-                  : building.type === 'gate'
-                    ? { top: '#64748b', stroke: '#475569' }
-                    : { top: '#92400e', stroke: '#78350f' };
+        // Building overlay: tower/barbican/gate/gatehouse/bridge + embrasure types
+        const overlayBuildingTypes = ['tower', 'barbican', 'gate', 'gatehouse', 'bridge', 'machicolations', 'balistraria', 'crossbow_slit', 'longbow_slit'] as const;
+        if (overlayBuildingTypes.includes(building.type as typeof overlayBuildingTypes[number])) {
+          const colorMap: Record<string, { top: string; stroke: string }> = {
+            tower: { top: '#d97706', stroke: '#b45309' },
+            barbican: { top: '#b91c1c', stroke: '#991b1b' },
+            gatehouse: { top: '#1e3a5f', stroke: '#0f172a' },
+            gate: { top: '#64748b', stroke: '#475569' },
+            bridge: { top: '#92400e', stroke: '#78350f' },
+            machicolations: { top: '#374151', stroke: '#1f2937' },
+            balistraria: { top: '#4b5563', stroke: '#374151' },
+            crossbow_slit: { top: '#6b7280', stroke: '#4b5563' },
+            longbow_slit: { top: '#9ca3af', stroke: '#6b7280' },
+          };
+          const overlayColors = colorMap[building.type] ?? { top: '#6b7280', stroke: '#374151' };
           ctx.save();
           ctx.globalAlpha = 0.92;
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, overlayColors, edgeVisibility);
@@ -513,7 +516,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       }
 
       // Building-tool hover preview: light up tile under cursor (like moat highlight)
-      const isBuildingTool = selectedTool === 'build_tower' || selectedTool === 'build_barbican' || selectedTool === 'build_gate' || selectedTool === 'build_bridge';
+      const embrasureTools = ['build_machicolations', 'build_balistraria', 'build_crossbow_slit', 'build_longbow_slit'];
+      const isBuildingTool =
+        selectedTool === 'build_tower' || selectedTool === 'build_barbican' || selectedTool === 'build_gate' || selectedTool === 'build_bridge' ||
+        embrasureTools.includes(selectedTool);
       if (isBuildingTool && hoveredTile) {
         const hx = hoveredTile.x;
         const hy = hoveredTile.y;
@@ -539,6 +545,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           const gateValid = tile?.zone === 'wall';
           previewColor = gateValid ? '#22c55e' : '#ef4444';
           previewStroke = gateValid ? '#16a34a' : '#dc2626';
+        } else if (embrasureTools.includes(selectedTool)) {
+          const wallValid = tile?.zone === 'wall';
+          previewColor = wallValid ? '#22c55e' : '#ef4444';
+          previewStroke = wallValid ? '#16a34a' : '#dc2626';
         } else {
           const bridgeValid = tile?.building?.type === 'moat';
           previewColor = bridgeValid ? '#22c55e' : '#ef4444';

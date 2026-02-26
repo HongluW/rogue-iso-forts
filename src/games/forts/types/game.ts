@@ -23,7 +23,12 @@ export type Tool =
   | 'build_barbican'
   | 'build_gate'
   // Utils
-  | 'build_bridge';
+  | 'build_bridge'
+  // Embrasure (walls defense)
+  | 'build_machicolations'
+  | 'build_balistraria'
+  | 'build_crossbow_slit'
+  | 'build_longbow_slit';
 
 // =============================================================================
 // TOOL INFO
@@ -41,6 +46,7 @@ export type ToolCategory =
   | 'tools'
   | 'terrain'
   | 'wall'
+  | 'walls_defense'
   | 'buildings'
   | 'utils';
 
@@ -55,6 +61,10 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
   build_barbican: { name: 'Barbican', cost: 25, description: 'Gatehouse defense', category: 'buildings' },
   build_gate: { name: 'Gate', cost: 10, description: 'Fortified entrance', category: 'buildings' },
   build_bridge: { name: 'Bridge', cost: 8, description: 'Bridge over moat', category: 'utils' },
+  build_machicolations: { name: 'Machicolations', cost: 12, description: 'Wall defense', category: 'walls_defense' },
+  build_balistraria: { name: 'Balistraria', cost: 10, description: 'Ballista opening', category: 'walls_defense' },
+  build_crossbow_slit: { name: 'Cross bow slit', cost: 6, description: 'Crossbow opening', category: 'walls_defense' },
+  build_longbow_slit: { name: 'Longbow slit', cost: 6, description: 'Longbow opening', category: 'walls_defense' },
 };
 
 // =============================================================================

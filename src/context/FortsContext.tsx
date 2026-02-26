@@ -203,8 +203,13 @@ export function FortsProvider({
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
         }
-      } else if (tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge') {
-        const buildingType = tool === 'build_tower' ? 'tower' : tool === 'build_barbican' ? 'barbican' : tool === 'build_gate' ? 'gate' : 'bridge';
+      } else if (
+        tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge' ||
+        tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit'
+      ) {
+        const buildingType =
+          tool === 'build_tower' ? 'tower' : tool === 'build_barbican' ? 'barbican' : tool === 'build_gate' ? 'gate' : tool === 'build_bridge' ? 'bridge'
+          : tool === 'build_machicolations' ? 'machicolations' : tool === 'build_balistraria' ? 'balistraria' : tool === 'build_crossbow_slit' ? 'crossbow_slit' : 'longbow_slit';
         if (tool === 'build_tower') {
           const tile = newGrid.get(key);
           if (!tile || tile.zone !== 'wall') return prev;
@@ -230,6 +235,10 @@ export function FortsProvider({
           tile.building = { type: 'bridge', constructionProgress: 100, powered: false, watered: false };
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+        }
+        if (tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit') {
+          const tile = newGrid.get(key);
+          if (!tile || tile.zone !== 'wall') return prev;
         }
         if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);
