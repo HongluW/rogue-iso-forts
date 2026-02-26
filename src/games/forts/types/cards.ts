@@ -93,6 +93,33 @@ export interface CardDefinition {
 
 export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
   // -------------------------------------------------------------------------
+  // Buildings — basic set: three core buildings
+  // -------------------------------------------------------------------------
+  building_stone_mason: {
+    id: 'building_stone_mason',
+    name: 'Stone Mason',
+    rarity: 'common',
+    category: 'buildings',
+    description: 'Unlocks construction of a Stone Mason workshop for processing stone.',
+    effectKey: 'stone_mason',
+  },
+  building_carpenter: {
+    id: 'building_carpenter',
+    name: 'Carpenter',
+    rarity: 'common',
+    category: 'buildings',
+    description: 'Unlocks construction of a Carpenter workshop for processing wood.',
+    effectKey: 'carpenter',
+  },
+  building_mess_hall: {
+    id: 'building_mess_hall',
+    name: 'Mess Hall',
+    rarity: 'common',
+    category: 'buildings',
+    description: 'Unlocks construction of a Mess Hall to keep defenders fed and organized.',
+    effectKey: 'mess_hall',
+  },
+  // -------------------------------------------------------------------------
   // Terrain — Moat (full moat by rarity), land bridges, earthworks, raised ground
   // -------------------------------------------------------------------------
   terrain_moat_common: {
