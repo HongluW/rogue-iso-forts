@@ -90,6 +90,10 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     gameVersion: 4,
     activeCardId: null,
     remainingBuildBlocksFromCard: null,
+    phase: 'card_draw',
+    round: 1,
+    phaseEndsAt: 0,
+    damagedTiles: [],
   };
 }
 
@@ -136,6 +140,46 @@ export function calculateFortStats(grid: Map<string, Tile>, gridSize: number): F
   }
 
   return { population, defense, capacity, wood: 0, stone: 0, food: 0 };
+}
+
+// Run siege: damage some wall/defense tiles (placeholder logic)
+export function runSiegeDamage(grid: Map<string, Tile>, _gridSize: number): { grid: Map<string, Tile>; damagedKeys: string[] } {
+  const damagedKeys: string[] = [];
+  const newGrid = new Map<string, Tile>();
+  const damageableTypes = new Set(['tower', 'barbican', 'gate', 'gatehouse', 'machicolations', 'balistraria', 'crossbow_slit', 'longbow_slit']);
+  for (const [key, tile] of grid.entries()) {
+    const newTile = { ...tile, building: { ...tile.building } };
+    const isWall = tile.zone === 'wall';
+    const isDefense = damageableTypes.has(tile.building.type);
+    if (tile.zone === 'start') {
+      newGrid.set(key, newTile);
+      continue;
+    }
+    if ((isWall || isDefense) && !tile.building.damaged && Math.random() < 0.15) {
+      newTile.building.damaged = true;
+      damagedKeys.push(key);
+    }
+    newGrid.set(key, newTile);
+  }
+  return { grid: newGrid, damagedKeys };
+}
+
+// Repair a damaged tile (cost: wood + stone)
+export function repairTile(
+  grid: Map<string, Tile>,
+  key: string,
+  woodCost: number,
+  stoneCost: number
+): { grid: Map<string, Tile>; success: boolean } {
+  const tile = grid.get(key);
+  if (!tile || !tile.building.damaged) return { grid, success: false };
+  const newGrid = new Map<string, Tile>();
+  for (const [k, t] of grid.entries()) {
+    const nt = { ...t, building: { ...t.building } };
+    if (k === key) nt.building.damaged = false;
+    newGrid.set(k, nt);
+  }
+  return { grid: newGrid, success: true };
 }
 
 // Simulate tick

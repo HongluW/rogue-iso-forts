@@ -2,8 +2,9 @@
  * IsoForts Game State Types
  */
 
-import { Building, BuildingType } from './buildings';
+import type { BuildingType } from './buildings';
 import type { CardId } from './cards';
+import type { GamePhase } from './phases';
 import { GridPosition } from '../lib/gridUtils';
 
 // =============================================================================
@@ -94,6 +95,8 @@ export interface Building {
   constructionProgress: number; // 0-100
   powered: boolean;
   watered: boolean;
+  /** True if damaged during siege; can be repaired with resources */
+  damaged?: boolean;
 }
 
 // =============================================================================
@@ -137,6 +140,12 @@ export interface GameState {
   /** Optional: currently active card and remaining build blocks it grants (e.g. moat segments) */
   activeCardId?: CardId | null;
   remainingBuildBlocksFromCard?: number | null;
+  /** Round-based phase system */
+  phase?: GamePhase;
+  round?: number;
+  phaseEndsAt?: number;
+  /** Grid keys (e.g. "5,7") of tiles damaged during siege; cleared when repaired */
+  damagedTiles?: string[];
 }
 
 // =============================================================================

@@ -8,11 +8,31 @@ import { FortsCanvas } from './FortsCanvas';
 import { FortsSidebar } from './FortsSidebar';
 import { FortsTopBar } from './FortsTopBar';
 import { FortsStatsPanel } from './FortsStatsPanel';
+import {
+  CardDrawScene,
+  BuildPhaseOverlay,
+  DefensePhaseScene,
+  RepairPhaseOverlay,
+  RoundEndOverlay,
+} from './phases';
 import { Button } from '@/components/ui/button';
 import { Menu } from 'lucide-react';
+import { REPAIR_COST_WOOD, REPAIR_COST_STONE } from '@/games/forts/types/phases';
 
 export default function FortsGame({ onExit }: { onExit?: () => void }) {
-  const { state, setTool, setActivePanel, placeAtTile, toggleFreeBuilder } = useForts();
+  const {
+    state,
+    setTool,
+    setActivePanel,
+    toggleFreeBuilder,
+    advanceFromCardDraw,
+    advanceFromBuildTimeUp,
+    advanceFromDefenseComplete,
+    advanceFromRepairToNextRound,
+    repairTile,
+    selectedDamagedKey,
+    setSelectedDamagedKey,
+  } = useForts();
   const [selectedTile, setSelectedTile] = useState<GridPosition | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const { isMobileDevice, isSmallScreen } = useMobile();
@@ -46,16 +66,44 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [state.activePanel, state.selectedTool, selectedTile, setActivePanel, setTool, toggleFreeBuilder]);
 
+  const phase = state.phase ?? 'build';
+  const round = state.round ?? 1;
+  const damagedTiles = state.damagedTiles ?? [];
+  const canAffordRepair =
+    state.stats.wood >= REPAIR_COST_WOOD && state.stats.stone >= REPAIR_COST_STONE;
+
   // Mobile layout
   if (isMobile) {
     return (
-      <div className="w-full h-full overflow-hidden bg-background flex flex-col">
+      <div className="w-full h-full overflow-hidden bg-background flex flex-col relative">
         <div className="flex-1 relative overflow-hidden">
-          <FortsCanvas 
-            selectedTile={selectedTile} 
+          <FortsCanvas
+            selectedTile={selectedTile}
             setSelectedTile={setSelectedTile}
             isMobile={true}
+            selectedDamagedKey={phase === 'repair' ? selectedDamagedKey : null}
           />
+          {phase === 'card_draw' && (
+            <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
+          )}
+          {phase === 'build' && state.phaseEndsAt != null && state.phaseEndsAt > 0 && (
+            <BuildPhaseOverlay phaseEndsAt={state.phaseEndsAt} onTimeUp={advanceFromBuildTimeUp} />
+          )}
+          {phase === 'defense' && (
+            <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
+          )}
+          {phase === 'repair' && (
+            <RepairPhaseOverlay
+              damagedCount={damagedTiles.length}
+              onRepairTile={repairTile}
+              onAdvanceToNextRound={advanceFromRepairToNextRound}
+              selectedDamagedKey={selectedDamagedKey}
+              setSelectedDamagedKey={setSelectedDamagedKey}
+              damagedKeys={damagedTiles}
+              canAffordRepair={canAffordRepair}
+            />
+          )}
+          {phase === 'round_end' && <RoundEndOverlay round={round} />}
         </div>
       </div>
     );
@@ -63,7 +111,7 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
 
   // Desktop layout: sidebar in flow so it pushes header and content
   return (
-    <div className="w-full h-full min-h-[720px] overflow-hidden bg-background flex flex-row">
+    <div className="w-full h-full min-h-[720px] overflow-hidden bg-background flex flex-row relative">
       {/* Sidebar: fixed width when open, 0 when collapsed so header/content push back */}
       <div
         className={`flex-shrink-0 h-full overflow-hidden transition-[width] duration-300 ease-in-out ${
@@ -96,7 +144,29 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
           <FortsCanvas
             selectedTile={selectedTile}
             setSelectedTile={setSelectedTile}
+            selectedDamagedKey={phase === 'repair' ? selectedDamagedKey : null}
           />
+          {phase === 'card_draw' && (
+            <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
+          )}
+          {phase === 'build' && state.phaseEndsAt != null && state.phaseEndsAt > 0 && (
+            <BuildPhaseOverlay phaseEndsAt={state.phaseEndsAt} onTimeUp={advanceFromBuildTimeUp} />
+          )}
+          {phase === 'defense' && (
+            <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
+          )}
+          {phase === 'repair' && (
+            <RepairPhaseOverlay
+              damagedCount={damagedTiles.length}
+              onRepairTile={repairTile}
+              onAdvanceToNextRound={advanceFromRepairToNextRound}
+              selectedDamagedKey={selectedDamagedKey}
+              setSelectedDamagedKey={setSelectedDamagedKey}
+              damagedKeys={damagedTiles}
+              canAffordRepair={canAffordRepair}
+            />
+          )}
+          {phase === 'round_end' && <RoundEndOverlay round={round} />}
         </div>
       </div>
     </div>

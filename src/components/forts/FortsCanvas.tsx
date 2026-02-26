@@ -144,9 +144,10 @@ interface FortsCanvasProps {
   selectedTile: GridPosition | null;
   setSelectedTile: (tile: GridPosition | null) => void;
   isMobile?: boolean;
+  selectedDamagedKey?: string | null;
 }
 
-export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }: FortsCanvasProps) {
+export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, selectedDamagedKey = null }: FortsCanvasProps) {
   const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
   const { grid, gridSize, selectedTool } = state;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -415,7 +416,8 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         } else if (tile.zone === 'start') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#7c3aed', stroke: '#5b21b6' }, edgeVisibility);
         } else if (tile.zone === 'wall') {
-          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#78716c', stroke: '#57534e' }, edgeVisibility);
+          const wallColors = building.damaged ? { top: '#7f1d1d', stroke: '#450a0a' } : { top: '#78716c', stroke: '#57534e' };
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, wallColors, edgeVisibility);
         } else if (building.type === 'grass' || building.type === 'empty') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#4a7c3f', stroke: '#2d4a26' }, edgeVisibility);
         } else {
@@ -439,9 +441,12 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
             carpenter: { top: '#3d2914', stroke: '#1f140a' },
             mess_hall: { top: '#eab308', stroke: '#ca8a04' },
           };
-          const overlayColors = colorMap[building.type] ?? { top: '#6b7280', stroke: '#374151' };
+          let overlayColors = colorMap[building.type] ?? { top: '#6b7280', stroke: '#374151' };
+          if (building.damaged) {
+            overlayColors = { top: '#7f1d1d', stroke: '#450a0a' };
+          }
           ctx.save();
-          ctx.globalAlpha = 0.92;
+          ctx.globalAlpha = building.damaged ? 0.7 : 0.92;
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, overlayColors, edgeVisibility);
           ctx.restore();
         }
@@ -464,9 +469,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           }
         }
 
-        // Selection highlight
-        if (isSelected) {
-          ctx.strokeStyle = '#ffff00';
+        // Selection highlight (normal or repair)
+        const isSelectedForRepair = selectedDamagedKey === gridToKey(x, y);
+        if (isSelected || isSelectedForRepair) {
+          ctx.strokeStyle = isSelectedForRepair ? '#f59e0b' : '#ffff00';
           ctx.lineWidth = 2;
           const hw = TILE_WIDTH / 2;
           const hh = TILE_HEIGHT / 2;

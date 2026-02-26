@@ -16,8 +16,16 @@ import {
   placeBuilding,
   bulldozeTile,
   calculateFortStats,
+  runSiegeDamage,
+  repairTile as repairTileSim,
 } from '@/games/forts/lib/simulation';
 import { CARD_DEFINITIONS } from '@/games/forts/types/cards';
+import {
+  BUILD_PHASE_DURATION_MS,
+  ROUND_END_DURATION_MS,
+  REPAIR_COST_WOOD,
+  REPAIR_COST_STONE,
+} from '@/games/forts/types/phases';
 import {
   FORTS_AUTOSAVE_KEY,
   FORTS_SAVED_FORT_PREFIX,
@@ -51,6 +59,13 @@ type FortsContextValue = {
   activeCardId: CardId | null;
   remainingBuildBlocksFromCard: number | null;
   playMoatCard: (cardId: CardId) => void;
+  advanceFromCardDraw: () => void;
+  advanceFromBuildTimeUp: () => void;
+  advanceFromDefenseComplete: () => void;
+  advanceFromRepairToNextRound: () => void;
+  repairTile: (key: string) => void;
+  selectedDamagedKey: string | null;
+  setSelectedDamagedKey: (key: string | null) => void;
 };
 
 const FortsContext = createContext<FortsContextValue | null>(null);
@@ -79,6 +94,7 @@ export function FortsProvider({
   const [hasSavedGame, setHasSavedGame] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [freeBuilderMode, setFreeBuilderMode] = useState(false);
+  const [selectedDamagedKey, setSelectedDamagedKey] = useState<string | null>(null);
   const latestStateRef = useRef<GameState>(state);
   const saveInProgressRef = useRef(false);
 
@@ -125,7 +141,14 @@ export function FortsProvider({
       const preferredKey = loadFortId ? `${FORTS_SAVED_FORT_PREFIX}${loadFortId}` : FORTS_AUTOSAVE_KEY;
       let parsed = loadFortsStateFromStorage(preferredKey);
       if (!parsed && loadFortId) parsed = loadFortsStateFromStorage(FORTS_AUTOSAVE_KEY);
-      if (parsed && parsed.grid && parsed.gridSize) { setState(parsed); setHasSavedGame(true); persistFortsSave(parsed); }
+      if (parsed && parsed.grid && parsed.gridSize) {
+        const toLoad = parsed.phase
+          ? parsed
+          : { ...parsed, phase: 'build' as const, phaseEndsAt: Date.now() + BUILD_PHASE_DURATION_MS, round: parsed.round ?? 1, damagedTiles: parsed.damagedTiles ?? [] };
+        setState(toLoad);
+        setHasSavedGame(true);
+        persistFortsSave(toLoad);
+      }
     } catch (e) { console.error('Failed to load forts game state:', e); }
     setIsStateReady(true);
   }, [startFresh, loadFortId, persistFortsSave]);
@@ -150,7 +173,73 @@ export function FortsProvider({
   }, []);
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
 
+  const advanceFromCardDraw = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'build',
+      phaseEndsAt: Date.now() + BUILD_PHASE_DURATION_MS,
+    }));
+  }, []);
+
+  const advanceFromBuildTimeUp = useCallback(() => {
+    setState(prev => ({ ...prev, phase: 'defense' }));
+  }, []);
+
+  const advanceFromDefenseComplete = useCallback(() => {
+    setState(prev => {
+      const { grid, damagedKeys } = runSiegeDamage(prev.grid, prev.gridSize);
+      return { ...prev, grid, phase: 'repair', damagedTiles: damagedKeys };
+    });
+  }, []);
+
+  const advanceFromRepairToNextRound = useCallback(() => {
+    setState(prev => ({
+      ...prev,
+      phase: 'round_end',
+      phaseEndsAt: Date.now() + ROUND_END_DURATION_MS,
+    }));
+    setTimeout(() => {
+      setState(s => ({
+        ...s,
+        phase: 'card_draw',
+        round: (s.round ?? 1) + 1,
+        damagedTiles: [],
+      }));
+    }, ROUND_END_DURATION_MS);
+  }, []);
+
+  const repairTile = useCallback((key: string) => {
+    setState(prev => {
+      if (prev.phase !== 'repair') return prev;
+      const woodCost = freeBuilderMode ? 0 : REPAIR_COST_WOOD;
+      const stoneCost = freeBuilderMode ? 0 : REPAIR_COST_STONE;
+      if (!freeBuilderMode && (prev.stats.wood < woodCost || prev.stats.stone < stoneCost)) return prev;
+      const { grid, success } = repairTileSim(prev.grid, key, woodCost, stoneCost);
+      if (!success) return prev;
+      const stats = calculateFortStats(grid, prev.gridSize);
+      const newDamaged = (prev.damagedTiles ?? []).filter(k => k !== key);
+      return {
+        ...prev,
+        grid,
+        stats: { ...prev.stats, ...stats, wood: prev.stats.wood - woodCost, stone: prev.stats.stone - stoneCost },
+        damagedTiles: newDamaged,
+      };
+    });
+  }, [freeBuilderMode]);
+
   const placeAtTile = useCallback((x: number, y: number) => {
+    const key = `${x},${y}`;
+    const prev = latestStateRef.current;
+    const phase = prev.phase ?? 'build';
+    if (phase === 'repair') {
+      const tile = prev.grid.get(key);
+      if (tile?.building?.damaged) {
+        setSelectedDamagedKey(k => (k === key ? null : key));
+        return;
+      }
+      return;
+    }
+    if (phase === 'card_draw' || phase === 'defense' || phase === 'round_end') return;
     setState(prev => {
       const newGrid = new Map<string, Tile>();
       for (const [key, tile] of prev.grid.entries()) {
@@ -298,6 +387,8 @@ export function FortsProvider({
   const placeMultipleTiles = useCallback((tiles: GridPosition[]) => {
     if (tiles.length === 0) return;
     setState(prev => {
+      const phase = prev.phase ?? 'build';
+      if (phase !== 'build') return prev;
       const newGrid = new Map<string, Tile>();
       for (const [key, tile] of prev.grid.entries()) {
         newGrid.set(key, { ...tile, building: { ...tile.building } });
@@ -431,6 +522,13 @@ export function FortsProvider({
     activeCardId: state.activeCardId ?? null,
     remainingBuildBlocksFromCard: state.remainingBuildBlocksFromCard ?? null,
     playMoatCard,
+    advanceFromCardDraw,
+    advanceFromBuildTimeUp,
+    advanceFromDefenseComplete,
+    advanceFromRepairToNextRound,
+    repairTile,
+    selectedDamagedKey,
+    setSelectedDamagedKey,
   };
 
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;

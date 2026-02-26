@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import type { GridPosition } from '@/games/forts/types';
+import type { GridPosition, Tool } from '@/games/forts/types';
 import { isDragBuildTool } from '@/games/forts/types';
 import { gridLineBetween, gridToKey, areAdjacent } from '@/games/forts/lib/gridUtils';
 
@@ -54,7 +54,7 @@ export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
       if (isDragBuildingRef.current) { cancelDragBuild(); return true; }
       return false;
     }
-    if (e.button === 0 && isDragBuildTool(selectedTool)) {
+    if (e.button === 0 && isDragBuildTool(selectedTool as Tool)) {
       const pos = mouseToGrid(e);
       if (pos && grid.has(gridToKey(pos.x, pos.y))) {
         isDragBuildingRef.current = true;
