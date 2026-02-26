@@ -88,6 +88,8 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     year: 1000,
     hour: 12,
     gameVersion: 4,
+    activeCardId: null,
+    remainingBuildBlocksFromCard: null,
   };
 }
 

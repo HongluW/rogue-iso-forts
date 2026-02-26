@@ -81,6 +81,8 @@ export interface CardDefinition {
   rarity: CardRarity;
   category: CardCategory;
   description: string;
+  /** Optional: resource costs when playing the card */
+  foodCost?: number;
   /** Optional: for buildings/terrain/utilities, reference a structure or effect key */
   effectKey?: string;
   /** Optional: for terrain (e.g. moat), number of blocks you can build out when this card is used */
@@ -156,10 +158,11 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
   // -------------------------------------------------------------------------
   terrain_moat_common: {
     id: 'terrain_moat_common',
-    name: 'Full Moat',
+    name: 'Small Ditch',
     rarity: 'common',
     category: 'terrain',
-    description: 'Build out 4 moat segments. Slows approach and funnels attackers.',
+    description: 'Build out 4 moat segments. Unused segments stay for later—draw again to use the rest.',
+    foodCost: 10,
     effectKey: 'moat',
     buildBlocks: 4,
   },
@@ -168,7 +171,8 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     name: 'Full Moat',
     rarity: 'unique',
     category: 'terrain',
-    description: 'Build out 7 moat segments. Slows approach and funnels attackers.',
+    description: 'Build out 7 moat segments. Unused segments stay for later—draw again to use the rest.',
+    foodCost: 18,
     effectKey: 'moat',
     buildBlocks: 7,
   },
@@ -177,7 +181,8 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     name: 'Full Moat',
     rarity: 'rare',
     category: 'terrain',
-    description: 'Build out 10 moat segments. Slows approach and funnels attackers.',
+    description: 'Build out 10 moat segments. Unused segments stay for later—draw again to use the rest.',
+    foodCost: 25,
     effectKey: 'moat',
     buildBlocks: 10,
   },

@@ -109,6 +109,13 @@ export function gridDistance(x1: number, y1: number, x2: number, y2: number): nu
 }
 
 /**
+ * Whether two grid cells are cardinal-neighbors (share an edge)
+ */
+export function areAdjacent(x1: number, y1: number, x2: number, y2: number): boolean {
+  return gridDistance(x1, y1, x2, y2) === 1;
+}
+
+/**
  * Get the 4 cardinal neighbors of a grid cell
  */
 export function getNeighbors(x: number, y: number): GridPosition[] {

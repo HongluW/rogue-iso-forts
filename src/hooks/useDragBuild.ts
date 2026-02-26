@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { GridPosition } from '@/games/forts/types';
 import { isDragBuildTool } from '@/games/forts/types';
-import { gridLineBetween, gridToKey } from '@/games/forts/lib/gridUtils';
+import { gridLineBetween, gridToKey, areAdjacent } from '@/games/forts/lib/gridUtils';
 
 export interface UseDragBuildOptions {
   grid: Map<string, unknown>;
@@ -26,17 +26,15 @@ export interface UseDragBuildResult {
 export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
   const { grid, selectedTool, mouseToGrid, placeMultipleTiles, onCancel } = options;
 
-  const [dragBuildStart, setDragBuildStart] = useState<GridPosition | null>(null);
-  const [dragBuildCurrent, setDragBuildCurrent] = useState<GridPosition | null>(null);
-  const [dragBuildPreview, setDragBuildPreview] = useState<GridPosition[]>([]);
+  const [dragBuildPath, setDragBuildPath] = useState<GridPosition[]>([]);
+  const pathRef = useRef<GridPosition[]>([]);
   const isDragBuildingRef = useRef(false);
 
   const cancelDragBuild = useCallback(() => {
     if (!isDragBuildingRef.current) return;
     isDragBuildingRef.current = false;
-    setDragBuildStart(null);
-    setDragBuildCurrent(null);
-    setDragBuildPreview([]);
+    pathRef.current = [];
+    setDragBuildPath([]);
     onCancel();
   }, [onCancel]);
 
@@ -58,43 +56,78 @@ export function useDragBuild(options: UseDragBuildOptions): UseDragBuildResult {
     }
     if (e.button === 0 && isDragBuildTool(selectedTool)) {
       const pos = mouseToGrid(e);
-      if (pos) {
+      if (pos && grid.has(gridToKey(pos.x, pos.y))) {
         isDragBuildingRef.current = true;
-        setDragBuildStart(pos);
-        setDragBuildCurrent(pos);
-        setDragBuildPreview([pos]);
+        const start = [pos];
+        pathRef.current = start;
+        setDragBuildPath(start);
         return true;
       }
     }
     return false;
-  }, [selectedTool, mouseToGrid, cancelDragBuild]);
+  }, [selectedTool, mouseToGrid, cancelDragBuild, grid]);
 
   const onMouseMove = useCallback((e: React.MouseEvent): boolean => {
-    if (!isDragBuildingRef.current || !dragBuildStart) return false;
+    if (!isDragBuildingRef.current) return false;
     const pos = mouseToGrid(e);
-    if (!pos || (pos.x === dragBuildCurrent?.x && pos.y === dragBuildCurrent?.y)) return true;
-    setDragBuildCurrent(pos);
-    const line = gridLineBetween(dragBuildStart.x, dragBuildStart.y, pos.x, pos.y);
-    const valid = line.filter(p => grid.has(gridToKey(p.x, p.y)));
-    setDragBuildPreview(valid);
+    if (!pos || !grid.has(gridToKey(pos.x, pos.y))) return true;
+
+    setDragBuildPath((prev) => {
+      if (prev.length === 0) {
+        const next = [pos];
+        pathRef.current = next;
+        return next;
+      }
+      const last = prev[prev.length - 1];
+      if (last.x === pos.x && last.y === pos.y) return prev;
+
+      // Retract: cursor moved back onto the path → truncate to that cell
+      const backIdx = prev.findIndex((p) => p.x === pos.x && p.y === pos.y);
+      if (backIdx >= 0) {
+        const next = prev.slice(0, backIdx + 1);
+        pathRef.current = next;
+        return next;
+      }
+
+      let next: GridPosition[];
+      if (areAdjacent(last.x, last.y, pos.x, pos.y)) {
+        next = [...prev, pos];
+      } else {
+        const segment = gridLineBetween(last.x, last.y, pos.x, pos.y);
+        const inGrid = segment.slice(1).filter((p) => grid.has(gridToKey(p.x, p.y)));
+        const seen = new Set(prev.map((p) => gridToKey(p.x, p.y)));
+        const tail = inGrid.filter((p) => !seen.has(gridToKey(p.x, p.y)));
+        next = [...prev, ...tail];
+      }
+      pathRef.current = next;
+      return next;
+    });
     return true;
-  }, [dragBuildStart, dragBuildCurrent, mouseToGrid, grid]);
+  }, [mouseToGrid, grid]);
 
   const onMouseUp = useCallback((e: React.MouseEvent): boolean => {
     if (e.button !== 0) return false;
     if (!isDragBuildingRef.current) return false;
-    if (dragBuildPreview.length > 0) placeMultipleTiles(dragBuildPreview);
+    const toPlace = pathRef.current;
+    if (toPlace.length > 0) placeMultipleTiles(toPlace);
+    pathRef.current = [];
+    setDragBuildPath([]);
     isDragBuildingRef.current = false;
-    setDragBuildStart(null);
-    setDragBuildCurrent(null);
-    setDragBuildPreview([]);
     onCancel();
     return true;
-  }, [dragBuildPreview, placeMultipleTiles, onCancel]);
+  }, [placeMultipleTiles, onCancel]);
 
   const onMouseLeave = useCallback(() => {
     if (isDragBuildingRef.current) cancelDragBuild();
   }, [cancelDragBuild]);
 
-  return { dragBuildPreview, isDragBuildingRef, cancelDragBuild, onMouseDown, onMouseMove, onMouseUp, onMouseLeave };
+  return {
+    dragBuildPreview: dragBuildPath,
+    isDragBuildingRef,
+    cancelDragBuild,
+    onMouseDown,
+    onMouseMove,
+    onMouseUp,
+    onMouseLeave,
+  };
 }

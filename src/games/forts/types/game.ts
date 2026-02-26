@@ -3,6 +3,7 @@
  */
 
 import { Building, BuildingType } from './buildings';
+import type { CardId } from './cards';
 import { GridPosition } from '../lib/gridUtils';
 
 // =============================================================================
@@ -126,6 +127,9 @@ export interface GameState {
   year: number;
   hour: number;
   gameVersion: number;
+  /** Optional: currently active card and remaining build blocks it grants (e.g. moat segments) */
+  activeCardId?: CardId | null;
+  remainingBuildBlocksFromCard?: number | null;
 }
 
 // =============================================================================

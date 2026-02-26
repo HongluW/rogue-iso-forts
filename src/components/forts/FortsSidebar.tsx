@@ -7,6 +7,10 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { ExpandableCategoryPanel, type ExpandableCategoryItem } from '@/components/ui/expandable-category-panel';
 import { X, LogOut } from 'lucide-react';
+import { CARD_DEFINITIONS, type CardDefinition } from '@/games/forts/types/cards';
+
+const MOAT_CARD_IDS = ['terrain_moat_common', 'terrain_moat_unique', 'terrain_moat_rare'] as const;
+const MOAT_CARDS: CardDefinition[] = MOAT_CARD_IDS.map((id) => CARD_DEFINITIONS[id]);
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
   tools: ['select', 'bulldoze', 'bulldoze_all'],
@@ -32,7 +36,7 @@ export function FortsSidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { state, setTool, freeBuilderMode } = useForts();
+  const { state, setTool, freeBuilderMode, activeCardId, remainingBuildBlocksFromCard, playMoatCard } = useForts();
   const { selectedTool, stats } = state;
 
   if (!isOpen) {
@@ -128,6 +132,43 @@ export function FortsSidebar({
               </div>
             </div>
           ))}
+          {/* Moat Cards */}
+          <div className="mt-4 space-y-2">
+            <h3 className="text-white/40 text-xs uppercase tracking-wider">
+              Moat Cards
+            </h3>
+            <div className="space-y-1">
+              {MOAT_CARDS.map((card) => {
+                const isActive = activeCardId === card.id;
+                const foodCost = card.foodCost ?? 0;
+                const canAfford = freeBuilderMode || stats.food >= foodCost;
+                return (
+                  <Button
+                    key={card.id}
+                    variant={isActive ? 'default' : 'ghost'}
+                    size="sm"
+                    className={`w-full justify-between ${isActive ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                    disabled={!canAfford}
+                    onClick={() => playMoatCard(card.id)}
+                  >
+                    <div className="flex flex-col items-start">
+                      <span className="text-xs font-medium">
+                        {card.name} ({card.rarity})
+                      </span>
+                      <span className="text-[11px] text-white/60">
+                        Segments: {card.buildBlocks ?? 0} · Food: {foodCost}
+                      </span>
+                    </div>
+                  </Button>
+                );
+              })}
+              {activeCardId && remainingBuildBlocksFromCard !== null && (
+                <div className="text-[11px] text-white/50 pt-1">
+                  Active card: {CARD_DEFINITIONS[activeCardId].name} — Remaining segments: {remainingBuildBlocksFromCard}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </ScrollArea>
 

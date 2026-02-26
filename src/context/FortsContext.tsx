@@ -9,6 +9,7 @@ import {
   FortStats,
   TOOL_INFO,
   GridPosition,
+  CardId,
 } from '@/games/forts/types';
 import {
   createInitialGameState,
@@ -16,6 +17,7 @@ import {
   bulldozeTile,
   calculateFortStats,
 } from '@/games/forts/lib/simulation';
+import { CARD_DEFINITIONS } from '@/games/forts/types/cards';
 import {
   FORTS_AUTOSAVE_KEY,
   FORTS_SAVED_FORT_PREFIX,
@@ -46,6 +48,9 @@ type FortsContextValue = {
   addResources: (amounts: { wood?: number; stone?: number; food?: number }) => void;
   freeBuilderMode: boolean;
   toggleFreeBuilder: () => void;
+  activeCardId: CardId | null;
+  remainingBuildBlocksFromCard: number | null;
+  playMoatCard: (cardId: CardId) => void;
 };
 
 const FortsContext = createContext<FortsContextValue | null>(null);
@@ -133,7 +138,16 @@ export function FortsProvider({
     return () => clearInterval(saveInterval);
   }, [isStateReady, persistFortsSaveAsync]);
 
-  const setTool = useCallback((tool: Tool) => { setState(prev => ({ ...prev, selectedTool: tool })); }, []);
+  const setTool = useCallback((tool: Tool) => {
+    setState(prev => ({
+      ...prev,
+      selectedTool: tool,
+      // When switching away from terrain tools, clear any active card effects
+      ...(tool !== 'zone_moat'
+        ? { activeCardId: null, remainingBuildBlocksFromCard: null }
+        : {}),
+    }));
+  }, []);
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
 
   const placeAtTile = useCallback((x: number, y: number) => {
@@ -161,10 +175,36 @@ export function FortsProvider({
       } else if (tool === 'zone_moat') {
         const tile = newGrid.get(key);
         if (tile) {
+          const isStart = tile.zone === 'start';
+          const isBuildable = tile.building.type === 'grass' || tile.building.type === 'empty';
+          if (isStart || !isBuildable) return prev;
+
+          const hadCardBlocks = prev.remainingBuildBlocksFromCard ?? null;
+          if (hadCardBlocks !== null && hadCardBlocks <= 0) {
+            return prev;
+          }
+
           tile.building = { type: 'moat', constructionProgress: 100, powered: false, watered: false };
           tile.zone = 'moat';
+
+          let nextActiveCardId = prev.activeCardId ?? null;
+          let nextRemainingBlocks = hadCardBlocks;
+          if (nextRemainingBlocks !== null) {
+            nextRemainingBlocks -= 1;
+            if (nextRemainingBlocks <= 0) {
+              nextActiveCardId = null;
+              nextRemainingBlocks = null;
+            }
+          }
+
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
+          return {
+            ...prev,
+            grid: newGrid,
+            stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
+            activeCardId: nextActiveCardId,
+            remainingBuildBlocksFromCard: nextRemainingBlocks,
+          };
         }
       } else if (tool === 'zone_land') {
         const tile = newGrid.get(key);
@@ -235,14 +275,32 @@ export function FortsProvider({
         newGrid.set(key, { ...tile, building: { ...tile.building } });
       }
       let changed = false;
+      const tool = prev.selectedTool;
+      let remainingFromCard = prev.remainingBuildBlocksFromCard ?? null;
+      let activeCardId = prev.activeCardId ?? null;
 
       for (const pos of tiles) {
         const key = `${pos.x},${pos.y}`;
         if (tool === 'bulldoze') {
           if (bulldozeTile(newGrid, prev.gridSize, pos.x, pos.y)) changed = true;
         } else if (tool === 'zone_moat') {
+          if (remainingFromCard !== null && remainingFromCard <= 0) break;
           const tile = newGrid.get(key);
-          if (tile) { tile.building = { type: 'moat', constructionProgress: 100, powered: false, watered: false }; tile.zone = 'moat'; changed = true; }
+          if (tile) {
+            const isStart = tile.zone === 'start';
+            const isBuildable = tile.building.type === 'grass' || tile.building.type === 'empty';
+            if (!isStart && isBuildable) {
+              tile.building = { type: 'moat', constructionProgress: 100, powered: false, watered: false };
+              tile.zone = 'moat';
+              changed = true;
+              if (remainingFromCard !== null) {
+                remainingFromCard -= 1;
+                if (remainingFromCard <= 0) {
+                  activeCardId = null;
+                }
+              }
+            }
+          }
         } else if (tool === 'zone_land') {
           const tile = newGrid.get(key);
           if (tile) { tile.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false }; tile.zone = 'land'; changed = true; }
@@ -254,7 +312,47 @@ export function FortsProvider({
 
       if (!changed) return prev;
       const stats = calculateFortStats(newGrid, prev.gridSize);
-      return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
+      return {
+        ...prev,
+        grid: newGrid,
+        stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
+        activeCardId,
+        remainingBuildBlocksFromCard: remainingFromCard,
+      };
+    });
+  }, [freeBuilderMode]);
+
+  const playMoatCard = useCallback((cardId: CardId) => {
+    const card = CARD_DEFINITIONS[cardId];
+    if (!card || card.effectKey !== 'moat') return;
+    const foodCost = card.foodCost ?? 0;
+
+    setState(prev => {
+      if (!prev) return prev;
+
+      const sameCardActive =
+        prev.activeCardId === card.id &&
+        prev.remainingBuildBlocksFromCard != null &&
+        prev.remainingBuildBlocksFromCard > 0;
+
+      if (sameCardActive) {
+        return { ...prev, selectedTool: 'zone_moat' };
+      }
+
+      if (!freeBuilderMode && foodCost > 0 && prev.stats.food < foodCost) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        selectedTool: 'zone_moat',
+        stats: {
+          ...prev.stats,
+          food: freeBuilderMode ? prev.stats.food : prev.stats.food - foodCost,
+        },
+        activeCardId: card.id,
+        remainingBuildBlocksFromCard: card.buildBlocks ?? null,
+      };
     });
   }, [freeBuilderMode]);
 
@@ -302,6 +400,9 @@ export function FortsProvider({
     addResources,
     freeBuilderMode,
     toggleFreeBuilder,
+    activeCardId: state.activeCardId ?? null,
+    remainingBuildBlocksFromCard: state.remainingBuildBlocksFromCard ?? null,
+    playMoatCard,
   };
 
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;
