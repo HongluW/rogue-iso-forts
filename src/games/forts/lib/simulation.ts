@@ -78,9 +78,9 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
       population: 0,
       defense: 0,
       capacity: 0,
-      wood: 100,
-      stone: 100,
-      food: 100,
+      wood: 5,
+      stone: 5,
+      food: 5,
     },
     tick: 0,
     day: 1,
@@ -94,6 +94,9 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     round: 1,
     phaseEndsAt: 0,
     damagedTiles: [],
+    roundBonusWood: 5,
+    roundBonusStone: 5,
+    roundBonusFood: 5,
   };
 }
 

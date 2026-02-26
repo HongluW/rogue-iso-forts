@@ -132,7 +132,7 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
         {!sidebarOpen && (
           <Button
             onClick={() => setSidebarOpen(true)}
-            className="absolute top-28 left-4 z-50 bg-slate-900 hover:bg-slate-800 text-white border border-slate-700"
+            className="absolute top-28 left-4 z-[100] bg-slate-900 hover:bg-slate-800 text-white border border-slate-700"
             size="icon"
           >
             <Menu className="w-5 h-5" />

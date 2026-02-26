@@ -199,12 +199,23 @@ export function FortsProvider({
       phaseEndsAt: Date.now() + ROUND_END_DURATION_MS,
     }));
     setTimeout(() => {
-      setState(s => ({
-        ...s,
-        phase: 'card_draw',
-        round: (s.round ?? 1) + 1,
-        damagedTiles: [],
-      }));
+      setState(s => {
+        const wood = s.roundBonusWood ?? 5;
+        const stone = s.roundBonusStone ?? 5;
+        const food = s.roundBonusFood ?? 5;
+        return {
+          ...s,
+          phase: 'card_draw',
+          round: (s.round ?? 1) + 1,
+          damagedTiles: [],
+          stats: {
+            ...s.stats,
+            wood: s.stats.wood + wood,
+            stone: s.stats.stone + stone,
+            food: s.stats.food + food,
+          },
+        };
+      });
     }, ROUND_END_DURATION_MS);
   }, []);
 

@@ -146,6 +146,10 @@ export interface GameState {
   phaseEndsAt?: number;
   /** Grid keys (e.g. "5,7") of tiles damaged during siege; cleared when repaired */
   damagedTiles?: string[];
+  /** Per-round resource grant (base 5; can be increased by cards, etc.) */
+  roundBonusWood?: number;
+  roundBonusStone?: number;
+  roundBonusFood?: number;
 }
 
 // =============================================================================

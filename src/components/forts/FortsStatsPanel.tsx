@@ -12,11 +12,13 @@ function ResourceRow({
   icon,
   label,
   value,
+  perRound,
   freeBuilder,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
+  perRound?: number;
   freeBuilder: boolean;
 }) {
   return (
@@ -26,6 +28,9 @@ function ResourceRow({
       <span className={`font-semibold ${freeBuilder ? 'text-yellow-400' : 'text-white'}`}>
         {freeBuilder ? '∞' : value.toLocaleString()}
       </span>
+      {!freeBuilder && perRound != null && perRound > 0 && (
+        <span className="text-xs text-emerald-400/90" title="Per round">+{perRound}</span>
+      )}
     </div>
   );
 }
@@ -33,6 +38,9 @@ function ResourceRow({
 export function FortsStatsPanel() {
   const { state, freeBuilderMode } = useForts();
   const { stats } = state;
+  const roundBonusWood = state.roundBonusWood ?? 5;
+  const roundBonusStone = state.roundBonusStone ?? 5;
+  const roundBonusFood = state.roundBonusFood ?? 5;
 
   return (
     <div className="h-12 bg-slate-800/50 border-b border-slate-800 flex items-center gap-6 px-4 text-sm">
@@ -40,18 +48,21 @@ export function FortsStatsPanel() {
         icon={<WoodIcon />}
         label="Wood"
         value={stats.wood}
+        perRound={roundBonusWood}
         freeBuilder={freeBuilderMode}
       />
       <ResourceRow
         icon={<StoneIcon />}
         label="Stone"
         value={stats.stone}
+        perRound={roundBonusStone}
         freeBuilder={freeBuilderMode}
       />
       <ResourceRow
         icon={<FoodIcon />}
         label="Food"
         value={stats.food}
+        perRound={roundBonusFood}
         freeBuilder={freeBuilderMode}
       />
       {freeBuilderMode && (

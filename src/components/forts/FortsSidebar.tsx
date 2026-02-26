@@ -41,6 +41,9 @@ export function FortsSidebar({
 }) {
   const { state, setTool, freeBuilderMode, activeCardId, remainingBuildBlocksFromCard, playMoatCard } = useForts();
   const { selectedTool, stats } = state;
+  const roundBonusWood = state.roundBonusWood ?? 5;
+  const roundBonusStone = state.roundBonusStone ?? 5;
+  const roundBonusFood = state.roundBonusFood ?? 5;
 
   if (!isOpen) {
     return null;
@@ -68,6 +71,9 @@ export function FortsSidebar({
           <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
             {freeBuilderMode ? '∞' : stats.wood.toLocaleString()}
           </span>
+          {!freeBuilderMode && (
+            <span className="text-xs text-emerald-400/90" title="Per round">+{roundBonusWood}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-slate-500" aria-hidden>🪨</span>
@@ -75,6 +81,9 @@ export function FortsSidebar({
           <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
             {freeBuilderMode ? '∞' : stats.stone.toLocaleString()}
           </span>
+          {!freeBuilderMode && (
+            <span className="text-xs text-emerald-400/90" title="Per round">+{roundBonusStone}</span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-amber-500" aria-hidden>🌾</span>
@@ -82,6 +91,9 @@ export function FortsSidebar({
           <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
             {freeBuilderMode ? '∞' : stats.food.toLocaleString()}
           </span>
+          {!freeBuilderMode && (
+            <span className="text-xs text-emerald-400/90" title="Per round">+{roundBonusFood}</span>
+          )}
         </div>
         <div className="text-white/60 text-xs pt-1">Population</div>
         <div className="text-white text-lg font-semibold">{stats.population.toLocaleString()}</div>
