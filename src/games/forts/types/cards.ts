@@ -120,6 +120,38 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     effectKey: 'mess_hall',
   },
   // -------------------------------------------------------------------------
+  // Buildings — rare upgrades for core buildings
+  // NOTE: These are design-only for now. When implemented, each upgrade
+  //       should increase the per-round output of its corresponding resource.
+  // -------------------------------------------------------------------------
+  building_upgrade_stone_mason: {
+    id: 'building_upgrade_stone_mason',
+    name: 'Upgrade Stonemason',
+    rarity: 'rare',
+    category: 'buildings',
+    description:
+      'Upgrade the Stone Mason. When implemented, this will increase the per-round output of stone from Stone Mason buildings.',
+    effectKey: 'upgrade_stone_mason',
+  },
+  building_upgrade_carpenter: {
+    id: 'building_upgrade_carpenter',
+    name: 'Upgrade Carpentry',
+    rarity: 'rare',
+    category: 'buildings',
+    description:
+      'Upgrade the Carpenter. When implemented, this will increase the per-round output of wood from Carpenter buildings.',
+    effectKey: 'upgrade_carpenter',
+  },
+  building_upgrade_mess_hall: {
+    id: 'building_upgrade_mess_hall',
+    name: 'Upgrade Mess Hall',
+    rarity: 'rare',
+    category: 'buildings',
+    description:
+      'Upgrade the Mess Hall. When implemented, this will increase the per-round output of food (or morale-related food effects) from Mess Halls.',
+    effectKey: 'upgrade_mess_hall',
+  },
+  // -------------------------------------------------------------------------
   // Terrain — Moat (full moat by rarity), land bridges, earthworks, raised ground
   // -------------------------------------------------------------------------
   terrain_moat_common: {
