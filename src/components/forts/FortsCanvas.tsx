@@ -149,7 +149,8 @@ interface FortsCanvasProps {
 
 export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, selectedDamagedKey = null }: FortsCanvasProps) {
   const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
-  const { grid, gridSize, selectedTool } = state;
+  const { grid, gridSize, selectedTool, phase: rawPhase } = state;
+  const phase = rawPhase ?? 'build';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderPendingRef = useRef<number | null>(null);
@@ -196,7 +197,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
     };
     const handleKeyUp = (e: KeyboardEvent) => { keysPressedRef.current.delete(e.key.toLowerCase()); };
     const loop = () => {
-      if (keysPressedRef.current.size > 0) {
+      if (phase !== 'card_draw' && keysPressedRef.current.size > 0) {
         const mx = (keysPressedRef.current.has('a') ? panSpeed : 0) - (keysPressedRef.current.has('d') ? panSpeed : 0);
         const my = (keysPressedRef.current.has('w') ? panSpeed : 0) - (keysPressedRef.current.has('s') ? panSpeed : 0);
         if (mx || my) setOffset(prev => ({ x: prev.x + mx, y: prev.y + my }));
@@ -207,7 +208,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
     window.addEventListener('keyup', handleKeyUp);
     loop();
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); keysPressedRef.current.clear(); };
-  }, []);
+  }, [phase, panSpeed]);
 
   // Mouse → grid helper
   const mouseToGrid = useCallback((e: React.MouseEvent | { clientX: number; clientY: number }): GridPosition | null => {
@@ -235,6 +236,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
 
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (phase === 'card_draw') return;
     mouseButtonRef.current = e.button;
     if (e.button === 2) {
       e.preventDefault();
@@ -251,6 +253,13 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
   }, [dragBuild]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (phase === 'card_draw') {
+      if (!isDragging) {
+        const pos = mouseToGrid(e);
+        setHoveredTile(pos ?? null);
+      }
+      return;
+    }
     if (!isDragging) {
       const pos = mouseToGrid(e);
       setHoveredTile(pos ?? null);
@@ -267,6 +276,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
   }, [isDragging, dragStart, dragBuild, mouseToGrid]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
+    if (phase === 'card_draw') return;
     if (!isDragging) return;
     if (e.button === 2 || mouseButtonRef.current === 2) {
       setIsDragging(false); isPanningRef.current = false; mouseButtonRef.current = null; return;
@@ -284,6 +294,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
 
   // Zoom to cursor
   const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (phase === 'card_draw') {
+      e.preventDefault();
+      return;
+    }
     e.preventDefault();
     if (!canvasRef.current) return;
     const canvas = canvasRef.current;
