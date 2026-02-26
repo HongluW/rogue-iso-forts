@@ -51,7 +51,7 @@ type FortsContextValue = {
   hasExistingGame: boolean;
   isStateReady: boolean;
   isSaving: boolean;
-  addMoney: (amount: number) => void;
+  addResources: (amounts: { wood?: number; stone?: number; food?: number }) => void;
   freeBuilderMode: boolean;
   toggleFreeBuilder: () => void;
 };
@@ -162,14 +162,10 @@ export function FortsProvider({
       }
       const tool = prev.selectedTool;
       const key = `${x},${y}`;
-      const toolInfo = TOOL_INFO[tool];
-      const cost = toolInfo?.cost || 0;
-      if (!freeBuilderMode && cost > 0 && prev.stats.money < cost) return prev;
-
       if (tool === 'bulldoze') {
         if (bulldozeTile(newGrid, prev.gridSize, x, y)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
       } else if (tool === 'bulldoze_all' && freeBuilderMode) {
         for (const [k, tile] of newGrid.entries()) {
@@ -179,14 +175,14 @@ export function FortsProvider({
           t.zone = 'none';
         }
         const stats = calculateFortStats(newGrid, prev.gridSize);
-        return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats } };
+        return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
       } else if (tool === 'zone_moat') {
         const tile = newGrid.get(key);
         if (tile) {
           tile.building = { type: 'moat', constructionProgress: 100, powered: false, watered: false };
           tile.zone = 'moat';
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
       } else if (tool === 'zone_land') {
         const tile = newGrid.get(key);
@@ -194,14 +190,14 @@ export function FortsProvider({
           tile.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false };
           tile.zone = 'land';
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
       } else if (tool === 'zone_wall') {
         const tile = newGrid.get(key);
         if (tile) {
           tile.zone = 'wall';
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
       } else if (
         tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge' ||
@@ -226,7 +222,7 @@ export function FortsProvider({
           if (tile.building.type === 'tower') {
             tile.building = { type: 'gatehouse', constructionProgress: 100, powered: false, watered: false };
             const stats = calculateFortStats(newGrid, prev.gridSize);
-            return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+            return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
           }
         }
         if (tool === 'build_bridge') {
@@ -234,7 +230,7 @@ export function FortsProvider({
           if (!tile || tile.building.type !== 'moat') return prev;
           tile.building = { type: 'bridge', constructionProgress: 100, powered: false, watered: false };
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
         if (tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit') {
           const tile = newGrid.get(key);
@@ -242,7 +238,7 @@ export function FortsProvider({
         }
         if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
         }
       }
       return prev;
@@ -252,12 +248,6 @@ export function FortsProvider({
   const placeMultipleTiles = useCallback((tiles: GridPosition[]) => {
     if (tiles.length === 0) return;
     setState(prev => {
-      const tool = prev.selectedTool;
-      const toolInfo = TOOL_INFO[tool];
-      const costPerTile = toolInfo?.cost || 0;
-      const totalCost = costPerTile * tiles.length;
-      if (!freeBuilderMode && totalCost > 0 && prev.stats.money < totalCost) return prev;
-
       const newGrid = new Map<string, Tile>();
       for (const [key, tile] of prev.grid.entries()) {
         newGrid.set(key, { ...tile, building: { ...tile.building } });
@@ -282,7 +272,7 @@ export function FortsProvider({
 
       if (!changed) return prev;
       const stats = calculateFortStats(newGrid, prev.gridSize);
-      return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - totalCost) } };
+      return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
     });
   }, [freeBuilderMode]);
 
@@ -293,21 +283,32 @@ export function FortsProvider({
     setHasSavedGame(false);
   }, []);
 
-  const addMoney = useCallback((amount: number) => {
-    setState(prev => ({ ...prev, stats: { ...prev.stats, money: prev.stats.money + amount } }));
+  const addResources = useCallback((amounts: { wood?: number; stone?: number; food?: number }) => {
+    setState(prev => ({
+      ...prev,
+      stats: {
+        ...prev.stats,
+        wood: prev.stats.wood + (amounts.wood ?? 0),
+        stone: prev.stats.stone + (amounts.stone ?? 0),
+        food: prev.stats.food + (amounts.food ?? 0),
+      },
+    }));
   }, []);
 
   const toggleFreeBuilder = useCallback(() => {
     setFreeBuilderMode(prev => {
       const newMode = !prev;
-      if (newMode) setState(prevState => ({ ...prevState, stats: { ...prevState.stats, money: 999999 } }));
+      if (newMode) setState(prevState => ({
+        ...prevState,
+        stats: { ...prevState.stats, wood: 999999, stone: 999999, food: 999999 },
+      }));
       return newMode;
     });
   }, []);
 
   const value: FortsContextValue = {
     state, latestStateRef, setTool, setSpeed, setActivePanel, placeAtTile, placeMultipleTiles,
-    newGame, hasExistingGame: hasSavedGame, isStateReady, isSaving, addMoney, freeBuilderMode, toggleFreeBuilder,
+    newGame, hasExistingGame: hasSavedGame, isStateReady, isSaving, addResources, freeBuilderMode, toggleFreeBuilder,
   };
 
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;

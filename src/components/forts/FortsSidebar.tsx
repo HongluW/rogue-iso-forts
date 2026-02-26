@@ -53,13 +53,30 @@ export function FortsSidebar({
         </button>
       </div>
 
-      {/* Stats */}
+      {/* Stats — Wood, Stone, Food */}
       <div className="p-4 border-b border-slate-800 space-y-2">
-        <div className="text-white/60 text-xs">Money</div>
-        <div className={`text-lg font-semibold ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
-          {freeBuilderMode ? '∞ FREE' : `$${stats.money.toLocaleString()}`}
+        <div className="flex items-center gap-2">
+          <span className="text-amber-600" aria-hidden>🪵</span>
+          <span className="text-white/60 text-xs">Wood</span>
+          <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
+            {freeBuilderMode ? '∞' : stats.wood.toLocaleString()}
+          </span>
         </div>
-        <div className="text-white/60 text-xs">Population</div>
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500" aria-hidden>🪨</span>
+          <span className="text-white/60 text-xs">Stone</span>
+          <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
+            {freeBuilderMode ? '∞' : stats.stone.toLocaleString()}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-amber-500" aria-hidden>🌾</span>
+          <span className="text-white/60 text-xs">Food</span>
+          <span className={`text-lg font-semibold ml-auto ${freeBuilderMode ? 'text-yellow-400' : 'text-white'}`}>
+            {freeBuilderMode ? '∞' : stats.food.toLocaleString()}
+          </span>
+        </div>
+        <div className="text-white/60 text-xs pt-1">Population</div>
         <div className="text-white text-lg font-semibold">{stats.population.toLocaleString()}</div>
         <div className="text-white/60 text-xs">Defense</div>
         <div className="text-white text-lg font-semibold">{stats.defense.toLocaleString()}</div>
@@ -88,16 +105,12 @@ export function FortsSidebar({
                       className={`w-full justify-start text-left ${
                         isSelected ? 'bg-blue-600 hover:bg-blue-700' : ''
                       }`}
-                      disabled={
-                        tool === 'bulldoze_all'
-                          ? !freeBuilderMode
-                          : !freeBuilderMode && toolInfo.cost > stats.money && tool !== 'select' && tool !== 'bulldoze'
-                      }
+                      disabled={tool === 'bulldoze_all' ? !freeBuilderMode : false}
                     >
                       <div className="flex-1">
                         <div className="text-sm">{toolInfo.name}</div>
                         {toolInfo.cost > 0 && (
-                          <div className="text-xs text-white/60">${toolInfo.cost}</div>
+                          <div className="text-xs text-white/60">Cost: —</div>
                         )}
                       </div>
                     </Button>
@@ -107,10 +120,7 @@ export function FortsSidebar({
                 {category === 'wall' && (
                   <ExpandableCategoryPanel
                     title="Embrasure"
-                    items={EMBRASURE_ITEMS.map((item) => ({
-                      ...item,
-                      disabled: !freeBuilderMode && (TOOL_INFO[item.id as Tool]?.cost ?? 0) > stats.money,
-                    }))}
+                    items={EMBRASURE_ITEMS.map((item) => ({ ...item, disabled: false }))}
                     selectedId={selectedTool}
                     onSelectItem={(id) => setTool(id as Tool)}
                   />

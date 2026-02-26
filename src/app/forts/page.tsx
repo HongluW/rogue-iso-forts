@@ -38,7 +38,6 @@ function SavedFortCard({ fort, onLoad, onDelete }: { fort: SavedFortMeta; onLoad
         <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
           <span>Pop: {fort.population.toLocaleString()}</span>
           <span>Defense: {fort.defense.toLocaleString()}</span>
-          <span>${fort.money.toLocaleString()}</span>
         </div>
       </button>
       {onDelete && (

@@ -96,9 +96,9 @@ export interface FortStats {
   population: number;
   defense: number;
   capacity: number;
-  money: number;
-  income: number;
-  expenses: number;
+  wood: number;
+  stone: number;
+  food: number;
 }
 
 // =============================================================================

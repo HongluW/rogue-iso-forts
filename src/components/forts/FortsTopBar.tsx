@@ -24,7 +24,7 @@ export function FortsTopBar() {
           variant={freeBuilderMode ? 'default' : 'ghost'}
           size="sm"
           className={freeBuilderMode ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : ''}
-          title="Toggle Free Builder Mode (unlimited money for testing)"
+          title="Toggle Free Builder Mode (unlimited resources for testing)"
         >
           <Sparkles className="w-4 h-4 mr-1.5" />
           Free Builder

@@ -7,7 +7,9 @@ export type SavedFortMeta = {
   fortName: string;
   population: number;
   defense: number;
-  money: number;
+  wood: number;
+  stone: number;
+  food: number;
   year: number;
   month: number;
   gridSize: number;
@@ -25,7 +27,9 @@ export function buildSavedFortMeta(state: GameState, savedAt: number = Date.now(
     fortName: state.fortName || 'Unnamed Fort',
     population: state.stats.population,
     defense: state.stats.defense,
-    money: state.stats.money,
+    wood: state.stats.wood,
+    stone: state.stats.stone,
+    food: state.stats.food,
     year: state.year,
     month: state.month,
     gridSize: state.gridSize,
@@ -131,9 +135,20 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
     if (parsed?.grid && parsed?.gridSize) {
       // Convert grid array back to Map
       const grid = gridArrayToMap(parsed.grid);
+      // Migrate old saves: money -> wood, stone, food
+      const stats = parsed.stats ?? {};
+      if (stats.money !== undefined && stats.wood === undefined) {
+        stats.wood = 100;
+        stats.stone = 100;
+        stats.food = 100;
+        delete stats.money;
+        delete stats.income;
+        delete stats.expenses;
+      }
       return {
         ...parsed,
         grid,
+        stats: { ...parsed.stats, ...stats },
       } as GameState;
     }
   } catch {

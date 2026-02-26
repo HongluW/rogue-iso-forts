@@ -78,9 +78,9 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
       population: 0,
       defense: 0,
       capacity: 0,
-      money: 10000,
-      income: 0,
-      expenses: 0,
+      wood: 100,
+      stone: 100,
+      food: 100,
     },
     tick: 0,
     day: 1,
@@ -133,7 +133,7 @@ export function calculateFortStats(grid: Map<string, Tile>, gridSize: number): F
     if (tile.zone === 'wall') defense += 1;
   }
 
-  return { population, defense, capacity, money: 0, income: 0, expenses: 0 };
+  return { population, defense, capacity, wood: 0, stone: 0, food: 0 };
 }
 
 // Simulate tick
@@ -148,17 +148,15 @@ export function simulateTick(state: GameState): GameState {
   }
 
   const stats = calculateFortStats(newGrid, state.gridSize);
-  stats.money = state.stats.money;
-  stats.income = state.stats.income;
-  stats.expenses = state.stats.expenses;
+  stats.wood = state.stats.wood;
+  stats.stone = state.stats.stone;
+  stats.food = state.stats.food;
 
   let newTick = state.tick + 1;
   let newDay = state.day;
   let newMonth = state.month;
   let newYear = state.year;
   let newHour = state.hour;
-
-  if (newTick >= 30) { newTick = 0; newDay++; if (newDay % 7 === 0) stats.money += Math.floor((stats.income - stats.expenses) / 4); }
   if (newDay > 30) { newDay = 1; newMonth++; }
   if (newMonth > 12) { newMonth = 1; newYear++; }
 
