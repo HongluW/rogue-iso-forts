@@ -14,7 +14,6 @@ import {
   createInitialGameState,
   placeBuilding,
   bulldozeTile,
-  simulateTick,
   calculateFortStats,
 } from '@/games/forts/lib/simulation';
 import {
@@ -30,12 +29,6 @@ import {
 } from '@/games/forts/saveUtils';
 
 // =============================================================================
-// CONSTANTS
-// =============================================================================
-
-const SPEED_TICK_INTERVALS = [0, 500, 300, 200] as const;
-
-// =============================================================================
 // CONTEXT TYPE
 // =============================================================================
 
@@ -43,7 +36,6 @@ type FortsContextValue = {
   state: GameState;
   latestStateRef: React.RefObject<GameState>;
   setTool: (tool: Tool) => void;
-  setSpeed: (speed: 0 | 1 | 2 | 3) => void;
   setActivePanel: (panel: GameState['activePanel']) => void;
   placeAtTile: (x: number, y: number) => void;
   placeMultipleTiles: (tiles: GridPosition[]) => void;
@@ -141,17 +133,7 @@ export function FortsProvider({
     return () => clearInterval(saveInterval);
   }, [isStateReady, persistFortsSaveAsync]);
 
-  useEffect(() => {
-    if (!isStateReady || state.speed === 0) return;
-    const tickInterval = SPEED_TICK_INTERVALS[state.speed];
-    const interval = setInterval(() => {
-      setState(prev => { const newState = simulateTick(prev); latestStateRef.current = newState; return newState; });
-    }, tickInterval);
-    return () => clearInterval(interval);
-  }, [isStateReady, state.speed]);
-
   const setTool = useCallback((tool: Tool) => { setState(prev => ({ ...prev, selectedTool: tool })); }, []);
-  const setSpeed = useCallback((speed: 0 | 1 | 2 | 3) => { setState(prev => ({ ...prev, speed })); }, []);
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
 
   const placeAtTile = useCallback((x: number, y: number) => {
@@ -307,8 +289,19 @@ export function FortsProvider({
   }, []);
 
   const value: FortsContextValue = {
-    state, latestStateRef, setTool, setSpeed, setActivePanel, placeAtTile, placeMultipleTiles,
-    newGame, hasExistingGame: hasSavedGame, isStateReady, isSaving, addResources, freeBuilderMode, toggleFreeBuilder,
+    state,
+    latestStateRef,
+    setTool,
+    setActivePanel,
+    placeAtTile,
+    placeMultipleTiles,
+    newGame,
+    hasExistingGame: hasSavedGame,
+    isStateReady,
+    isSaving,
+    addResources,
+    freeBuilderMode,
+    toggleFreeBuilder,
   };
 
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;
