@@ -161,6 +161,30 @@ export function FortsProvider({
     return () => clearInterval(saveInterval);
   }, [isStateReady, persistFortsSaveAsync]);
 
+  // Save current state (including phase) when user leaves or hides tab so load restores the correct phase
+  useEffect(() => {
+    if (typeof window === 'undefined' || !isStateReady) return;
+    const saveNow = () => persistFortsSave(latestStateRef.current);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') saveNow();
+    };
+    window.addEventListener('pagehide', saveNow);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.removeEventListener('pagehide', saveNow);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isStateReady, persistFortsSave]);
+
+  // Save when leaving the game screen (e.g. exit to fort list) so build phase etc. is restored on re-entry
+  useEffect(() => {
+    return () => {
+      if (isStateReady && latestStateRef.current) {
+        persistFortsSave(latestStateRef.current);
+      }
+    };
+  }, [isStateReady, persistFortsSave]);
+
   const setTool = useCallback((tool: Tool) => {
     setState(prev => ({
       ...prev,
@@ -174,12 +198,17 @@ export function FortsProvider({
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
 
   const advanceFromCardDraw = useCallback(() => {
-    setState(prev => ({
-      ...prev,
-      phase: 'build',
-      phaseEndsAt: Date.now() + BUILD_PHASE_DURATION_MS,
-    }));
-  }, []);
+    setState(prev => {
+      const next: GameState = {
+        ...prev,
+        phase: 'build',
+        phaseEndsAt: Date.now() + BUILD_PHASE_DURATION_MS,
+      };
+      // Persist immediately so "chosen cards → build phase" is saved before user exits
+      queueMicrotask(() => persistFortsSave(next));
+      return next;
+    });
+  }, [persistFortsSave]);
 
   const advanceFromBuildTimeUp = useCallback(() => {
     setState(prev => ({ ...prev, phase: 'defense' }));
