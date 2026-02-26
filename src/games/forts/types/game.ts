@@ -13,11 +13,17 @@ export type Tool =
   // Basic tools
   | 'select'
   | 'bulldoze'
-  
+  | 'bulldoze_all'
   // Terrain
   | 'zone_moat'
   | 'zone_land'
-  | 'zone_wall';
+  | 'zone_wall'
+  // Buildings
+  | 'build_tower'
+  | 'build_barbican'
+  | 'build_gate'
+  // Utils
+  | 'build_bridge';
 
 // =============================================================================
 // TOOL INFO
@@ -33,14 +39,22 @@ export interface ToolInfo {
 
 export type ToolCategory =
   | 'tools'
-  | 'terrain';
+  | 'terrain'
+  | 'wall'
+  | 'buildings'
+  | 'utils';
 
 export const TOOL_INFO: Record<Tool, ToolInfo> = {
   select: { name: 'Select', cost: 0, description: 'Select tiles', category: 'tools' },
   bulldoze: { name: 'Bulldoze', cost: 0, description: 'Remove structures', category: 'tools' },
+  bulldoze_all: { name: 'Bulldoze All', cost: 0, description: 'Clear everything except main home (Free Builder only)', category: 'tools' },
   zone_moat: { name: 'Moat', cost: 5, description: 'Dig a moat (drag to draw line)', category: 'terrain' },
   zone_land: { name: 'Land', cost: 0, description: 'Place land (drag to draw line)', category: 'terrain' },
-  zone_wall: { name: 'Wall', cost: 3, description: 'Stone wall (drag to draw line)', category: 'terrain' },
+  zone_wall: { name: 'Wall', cost: 3, description: 'Stone wall (drag to draw line)', category: 'wall' },
+  build_tower: { name: 'Tower', cost: 15, description: 'Defense tower', category: 'buildings' },
+  build_barbican: { name: 'Barbican', cost: 25, description: 'Gatehouse defense', category: 'buildings' },
+  build_gate: { name: 'Gate', cost: 10, description: 'Fortified entrance', category: 'buildings' },
+  build_bridge: { name: 'Bridge', cost: 8, description: 'Bridge over moat', category: 'utils' },
 };
 
 // =============================================================================

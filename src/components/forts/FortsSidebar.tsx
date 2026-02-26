@@ -5,11 +5,14 @@ import { useForts } from '@/context/FortsContext';
 import { Tool, TOOL_INFO } from '@/games/forts/types';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { X, Menu, LogOut, Sparkles } from 'lucide-react';
+import { X, LogOut } from 'lucide-react';
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
-  tools: ['select', 'bulldoze'],
-  terrain: ['zone_moat', 'zone_land', 'zone_wall'],
+  tools: ['select', 'bulldoze', 'bulldoze_all'],
+  terrain: ['zone_moat', 'zone_land'],
+  wall: ['zone_wall'],
+  buildings: ['build_tower', 'build_barbican', 'build_gate'],
+  utils: ['build_bridge'],
 };
 
 export function FortsSidebar({ 
@@ -21,7 +24,7 @@ export function FortsSidebar({
   isOpen: boolean;
   onClose: () => void;
 }) {
-  const { state, setTool, freeBuilderMode, toggleFreeBuilder } = useForts();
+  const { state, setTool, freeBuilderMode } = useForts();
   const { selectedTool, stats } = state;
 
   if (!isOpen) {
@@ -53,24 +56,6 @@ export function FortsSidebar({
         <div className="text-white/60 text-xs">Defense</div>
         <div className="text-white text-lg font-semibold">{stats.defense.toLocaleString()}</div>
       </div>
-      
-      {/* Free Builder Toggle */}
-      <div className="p-4 border-b border-slate-800">
-        <Button
-          onClick={toggleFreeBuilder}
-          variant={freeBuilderMode ? 'default' : 'outline'}
-          className={`w-full justify-start ${
-            freeBuilderMode 
-              ? 'bg-yellow-600 hover:bg-yellow-700 text-white border-yellow-500' 
-              : 'border-slate-700 text-white hover:bg-slate-800'
-          }`}
-          title="Toggle Free Builder Mode (unlimited money for testing)"
-        >
-          <Sparkles className={`w-4 h-4 mr-2 ${freeBuilderMode ? 'text-white' : 'text-yellow-400'}`} />
-          <span>Free Builder</span>
-          {freeBuilderMode && <span className="ml-auto text-xs">ON</span>}
-        </Button>
-      </div>
 
       {/* Tools */}
       <ScrollArea className="flex-1">
@@ -100,7 +85,11 @@ export function FortsSidebar({
                       className={`w-full justify-start text-left ${
                         isSelected ? 'bg-blue-600 hover:bg-blue-700' : ''
                       }`}
-                      disabled={!freeBuilderMode && toolInfo.cost > stats.money && tool !== 'select' && tool !== 'bulldoze'}
+                      disabled={
+                        tool === 'bulldoze_all'
+                          ? !freeBuilderMode
+                          : !freeBuilderMode && toolInfo.cost > stats.money && tool !== 'select' && tool !== 'bulldoze'
+                      }
                     >
                       <div className="flex-1">
                         <div className="text-sm">{toolInfo.name}</div>

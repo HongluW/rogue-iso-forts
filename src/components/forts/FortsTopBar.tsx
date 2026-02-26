@@ -3,10 +3,10 @@
 import React from 'react';
 import { useForts } from '@/context/FortsContext';
 import { Button } from '@/components/ui/button';
-import { Play, Pause, FastForward } from 'lucide-react';
+import { Play, Pause, FastForward, Sparkles } from 'lucide-react';
 
 export function FortsTopBar() {
-  const { state, setSpeed } = useForts();
+  const { state, setSpeed, freeBuilderMode, toggleFreeBuilder } = useForts();
   const { speed, fortName, year, month, day } = state;
 
   return (
@@ -19,6 +19,17 @@ export function FortsTopBar() {
       </div>
       
       <div className="flex items-center gap-2">
+        <Button
+          onClick={toggleFreeBuilder}
+          variant={freeBuilderMode ? 'default' : 'ghost'}
+          size="sm"
+          className={freeBuilderMode ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : ''}
+          title="Toggle Free Builder Mode (unlimited money for testing)"
+        >
+          <Sparkles className="w-4 h-4 mr-1.5" />
+          Free Builder
+          {freeBuilderMode && <span className="ml-1 text-xs">ON</span>}
+        </Button>
         <Button
           onClick={() => setSpeed(0)}
           variant={speed === 0 ? 'default' : 'ghost'}

@@ -171,6 +171,15 @@ export function FortsProvider({
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats } };
         }
+      } else if (tool === 'bulldoze_all' && freeBuilderMode) {
+        for (const [k, tile] of newGrid.entries()) {
+          if (tile.zone === 'start') continue;
+          const t = newGrid.get(k)!;
+          t.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false };
+          t.zone = 'none';
+        }
+        const stats = calculateFortStats(newGrid, prev.gridSize);
+        return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats } };
       } else if (tool === 'zone_moat') {
         const tile = newGrid.get(key);
         if (tile) {
@@ -191,6 +200,38 @@ export function FortsProvider({
         const tile = newGrid.get(key);
         if (tile) {
           tile.zone = 'wall';
+          const stats = calculateFortStats(newGrid, prev.gridSize);
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+        }
+      } else if (tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge') {
+        const buildingType = tool === 'build_tower' ? 'tower' : tool === 'build_barbican' ? 'barbican' : tool === 'build_gate' ? 'gate' : 'bridge';
+        if (tool === 'build_tower') {
+          const tile = newGrid.get(key);
+          if (!tile || tile.zone !== 'wall') return prev;
+          const neighbors = [{ x: x + 1, y }, { x: x - 1, y }, { x, y: y + 1 }, { x, y: y - 1 }];
+          for (const n of neighbors) {
+            if (n.x < 0 || n.x >= prev.gridSize || n.y < 0 || n.y >= prev.gridSize) continue;
+            const t = newGrid.get(`${n.x},${n.y}`);
+            if (t?.building?.type === 'tower') return prev;
+          }
+        }
+        if (tool === 'build_gate') {
+          const tile = newGrid.get(key);
+          if (!tile || tile.zone !== 'wall') return prev;
+          if (tile.building.type === 'tower') {
+            tile.building = { type: 'gatehouse', constructionProgress: 100, powered: false, watered: false };
+            const stats = calculateFortStats(newGrid, prev.gridSize);
+            return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+          }
+        }
+        if (tool === 'build_bridge') {
+          const tile = newGrid.get(key);
+          if (!tile || tile.building.type !== 'moat') return prev;
+          tile.building = { type: 'bridge', constructionProgress: 100, powered: false, watered: false };
+          const stats = calculateFortStats(newGrid, prev.gridSize);
+          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
+        }
+        if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, money: freeBuilderMode ? prev.stats.money : Math.max(0, prev.stats.money - cost) } };
         }

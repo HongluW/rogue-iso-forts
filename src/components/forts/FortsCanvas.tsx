@@ -156,6 +156,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   const [zoom, setZoom] = useState(1);
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [hoveredTile, setHoveredTile] = useState<GridPosition | null>(null);
   const isPanningRef = useRef(false);
   const mouseButtonRef = useRef<number | null>(null);
   const keysPressedRef = useRef<Set<string>>(new Set());
@@ -249,7 +250,11 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
   }, [dragBuild]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
+    if (!isDragging) {
+      const pos = mouseToGrid(e);
+      setHoveredTile(pos ?? null);
+      return;
+    }
     if (dragBuild.onMouseMove(e)) return;
     if (mouseButtonRef.current !== 2) return;
     const dx = e.clientX - dragStart.x;
@@ -258,7 +263,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setDragStart({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, dragStart, dragBuild]);
+  }, [isDragging, dragStart, dragBuild, mouseToGrid]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (!isDragging) return;
@@ -403,9 +408,9 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         const building = tile.building;
         const isSelected = selectedTile?.x === x && selectedTile?.y === y;
 
-        // Base tile color (all tiles use edge visibility so grid lines hide on both sides between moat blocks)
+        // Base tile color (bottom layer: wall, grass, moat, etc. so system retains "built on wall")
         const edgeVisibility = getMoatEdgeVisibility(x, y, gridSize, currentGrid, moatPreviewSet);
-        if (building.type === 'moat') {
+        if (building.type === 'moat' || building.type === 'bridge') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#2563eb', stroke: '#1e40af' }, edgeVisibility);
         } else if (tile.zone === 'start') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#7c3aed', stroke: '#5b21b6' }, edgeVisibility);
@@ -415,6 +420,24 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#4a7c3f', stroke: '#2d4a26' }, edgeVisibility);
         } else {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#6b7280', stroke: '#374151' }, edgeVisibility);
+        }
+
+        // Building overlay: tower/barbican/gate/gatehouse/bridge on top of base so their colors show
+        if (building.type === 'tower' || building.type === 'barbican' || building.type === 'gate' || building.type === 'gatehouse' || building.type === 'bridge') {
+          const overlayColors =
+            building.type === 'tower'
+              ? { top: '#d97706', stroke: '#b45309' }
+              : building.type === 'barbican'
+                ? { top: '#b91c1c', stroke: '#991b1b' }
+                : building.type === 'gatehouse'
+                  ? { top: '#1e3a5f', stroke: '#0f172a' }
+                  : building.type === 'gate'
+                    ? { top: '#64748b', stroke: '#475569' }
+                    : { top: '#92400e', stroke: '#78350f' };
+          ctx.save();
+          ctx.globalAlpha = 0.92;
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, overlayColors, edgeVisibility);
+          ctx.restore();
         }
 
         // Sprites for non-base buildings
@@ -489,10 +512,49 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
         }
       }
 
+      // Building-tool hover preview: light up tile under cursor (like moat highlight)
+      const isBuildingTool = selectedTool === 'build_tower' || selectedTool === 'build_barbican' || selectedTool === 'build_gate' || selectedTool === 'build_bridge';
+      if (isBuildingTool && hoveredTile) {
+        const hx = hoveredTile.x;
+        const hy = hoveredTile.y;
+        const tile = currentGrid.get(gridToKey(hx, hy));
+        let previewColor: string;
+        let previewStroke: string;
+        if (selectedTool === 'build_tower') {
+          const onWall = tile?.zone === 'wall';
+          const neighbors = [{ x: hx + 1, y: hy }, { x: hx - 1, y: hy }, { x: hx, y: hy + 1 }, { x: hx, y: hy - 1 }];
+          let adjacentTower = false;
+          for (const n of neighbors) {
+            if (n.x < 0 || n.x >= gridSize || n.y < 0 || n.y >= gridSize) continue;
+            const t = currentGrid.get(gridToKey(n.x, n.y));
+            if (t?.building?.type === 'tower') adjacentTower = true;
+          }
+          const valid = onWall && !adjacentTower;
+          previewColor = valid ? '#22c55e' : '#ef4444';
+          previewStroke = valid ? '#16a34a' : '#dc2626';
+        } else if (selectedTool === 'build_barbican') {
+          previewColor = '#b91c1c';
+          previewStroke = '#991b1b';
+        } else if (selectedTool === 'build_gate') {
+          const gateValid = tile?.zone === 'wall';
+          previewColor = gateValid ? '#22c55e' : '#ef4444';
+          previewStroke = gateValid ? '#16a34a' : '#dc2626';
+        } else {
+          const bridgeValid = tile?.building?.type === 'moat';
+          previewColor = bridgeValid ? '#22c55e' : '#ef4444';
+          previewStroke = bridgeValid ? '#16a34a' : '#dc2626';
+        }
+        const { screenX: px, screenY: py } = gridToScreen(hx, hy);
+        ctx.save();
+        ctx.globalAlpha = 0.7;
+        drawDiamond(ctx, px, py, { top: previewColor, stroke: previewStroke });
+        ctx.restore();
+      }
+
       ctx.restore();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool]);
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool, hoveredTile]);
 
   return (
     <div
@@ -502,6 +564,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={() => {
+        setHoveredTile(null);
         dragBuild.onMouseLeave();
         if (!dragBuild.isDragBuildingRef.current) { setIsDragging(false); isPanningRef.current = false; mouseButtonRef.current = null; }
       }}
