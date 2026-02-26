@@ -2,7 +2,7 @@
  * Forts Simulation Logic
  */
 
-import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS } from '../types';
+import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS, DEFAULT_BASE_HEALTH } from '../types';
 import { isMobile } from 'react-device-detect';
 import { gridToKey } from './gridUtils';
 
@@ -97,6 +97,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     roundBonusWood: 5,
     roundBonusStone: 5,
     roundBonusFood: 5,
+    baseHealth: DEFAULT_BASE_HEALTH,
   };
 }
 

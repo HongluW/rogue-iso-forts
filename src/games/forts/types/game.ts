@@ -150,7 +150,12 @@ export interface GameState {
   roundBonusWood?: number;
   roundBonusStone?: number;
   roundBonusFood?: number;
+  /** Main base (start zone) health; buildings/walls will have their own health later */
+  baseHealth?: number;
 }
+
+/** Starting health for the main base (start zone). */
+export const DEFAULT_BASE_HEALTH = 500;
 
 // =============================================================================
 // DRAG-BUILD TOOLS

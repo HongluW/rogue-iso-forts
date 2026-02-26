@@ -7,7 +7,6 @@ import { useForts } from '@/context/FortsContext';
 const WoodIcon = () => <span className="text-amber-600" aria-hidden>🪵</span>;
 const StoneIcon = () => <span className="text-slate-500" aria-hidden>🪨</span>;
 const FoodIcon = () => <span className="text-amber-500" aria-hidden>🌾</span>;
-
 function ResourceRow({
   icon,
   label,
@@ -41,6 +40,7 @@ export function FortsStatsPanel() {
   const roundBonusWood = state.roundBonusWood ?? 5;
   const roundBonusStone = state.roundBonusStone ?? 5;
   const roundBonusFood = state.roundBonusFood ?? 5;
+  const baseHealth = state.baseHealth ?? 500;
 
   return (
     <div className="h-12 bg-slate-800/50 border-b border-slate-800 flex items-center gap-6 px-4 text-sm">
@@ -69,6 +69,10 @@ export function FortsStatsPanel() {
         <span className="text-xs text-yellow-400/60">(Free Builder)</span>
       )}
       <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-700">
+        <span className="text-white/60 text-xs">Health:</span>
+        <span className="font-semibold text-white">{baseHealth.toLocaleString()}</span>
+      </div>
+      <div className="flex items-center gap-2">
         <span className="text-white/60">Pop:</span>
         <span className="text-white font-semibold">{stats.population.toLocaleString()}</span>
       </div>
