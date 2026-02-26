@@ -10,7 +10,6 @@ import { FortsTopBar } from './FortsTopBar';
 import { FortsStatsPanel } from './FortsStatsPanel';
 import {
   CardDrawScene,
-  BuildPhaseOverlay,
   DefensePhaseScene,
   RepairPhaseOverlay,
   RoundEndOverlay,
@@ -86,22 +85,34 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
           {phase === 'card_draw' && (
             <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
           )}
-          {phase === 'build' && state.phaseEndsAt != null && state.phaseEndsAt > 0 && (
-            <BuildPhaseOverlay phaseEndsAt={state.phaseEndsAt} onTimeUp={advanceFromBuildTimeUp} />
+          {phase === 'build' && (
+            <Button
+              onClick={advanceFromBuildTimeUp}
+              className="absolute top-4 right-4 z-40"
+            >
+              Ready
+            </Button>
           )}
           {phase === 'defense' && (
             <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
           )}
           {phase === 'repair' && (
-            <RepairPhaseOverlay
-              damagedCount={damagedTiles.length}
-              onRepairTile={repairTile}
-              onAdvanceToNextRound={advanceFromRepairToNextRound}
-              selectedDamagedKey={selectedDamagedKey}
-              setSelectedDamagedKey={setSelectedDamagedKey}
-              damagedKeys={damagedTiles}
-              canAffordRepair={canAffordRepair}
-            />
+            <>
+              <Button
+                onClick={advanceFromRepairToNextRound}
+                className="absolute top-4 right-4 z-40"
+              >
+                Continue to next round
+              </Button>
+              <RepairPhaseOverlay
+                damagedCount={damagedTiles.length}
+                onRepairTile={repairTile}
+                selectedDamagedKey={selectedDamagedKey}
+                setSelectedDamagedKey={setSelectedDamagedKey}
+                damagedKeys={damagedTiles}
+                canAffordRepair={canAffordRepair}
+              />
+            </>
           )}
           {phase === 'round_end' && <RoundEndOverlay round={round} />}
         </div>
@@ -149,22 +160,34 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
           {phase === 'card_draw' && (
             <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
           )}
-          {phase === 'build' && state.phaseEndsAt != null && state.phaseEndsAt > 0 && (
-            <BuildPhaseOverlay phaseEndsAt={state.phaseEndsAt} onTimeUp={advanceFromBuildTimeUp} />
+          {phase === 'build' && (
+            <Button
+              onClick={advanceFromBuildTimeUp}
+              className="absolute top-4 right-4 z-40"
+            >
+              Ready
+            </Button>
           )}
           {phase === 'defense' && (
             <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
           )}
           {phase === 'repair' && (
-            <RepairPhaseOverlay
-              damagedCount={damagedTiles.length}
-              onRepairTile={repairTile}
-              onAdvanceToNextRound={advanceFromRepairToNextRound}
-              selectedDamagedKey={selectedDamagedKey}
-              setSelectedDamagedKey={setSelectedDamagedKey}
-              damagedKeys={damagedTiles}
-              canAffordRepair={canAffordRepair}
-            />
+            <>
+              <Button
+                onClick={advanceFromRepairToNextRound}
+                className="absolute top-4 right-4 z-40"
+              >
+                Continue to next round
+              </Button>
+              <RepairPhaseOverlay
+                damagedCount={damagedTiles.length}
+                onRepairTile={repairTile}
+                selectedDamagedKey={selectedDamagedKey}
+                setSelectedDamagedKey={setSelectedDamagedKey}
+                damagedKeys={damagedTiles}
+                canAffordRepair={canAffordRepair}
+              />
+            </>
           )}
           {phase === 'round_end' && <RoundEndOverlay round={round} />}
         </div>

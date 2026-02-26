@@ -7,7 +7,6 @@ import { REPAIR_COST_WOOD, REPAIR_COST_STONE } from '@/games/forts/types/phases'
 interface RepairPhaseOverlayProps {
   damagedCount: number;
   onRepairTile: (key: string) => void;
-  onAdvanceToNextRound: () => void;
   selectedDamagedKey: string | null;
   setSelectedDamagedKey: (key: string | null) => void;
   damagedKeys: string[];
@@ -17,7 +16,6 @@ interface RepairPhaseOverlayProps {
 export function RepairPhaseOverlay({
   damagedCount,
   onRepairTile,
-  onAdvanceToNextRound,
   selectedDamagedKey,
   setSelectedDamagedKey,
   damagedKeys,
@@ -45,9 +43,6 @@ export function RepairPhaseOverlay({
           )}
         </div>
       )}
-      <Button variant="outline" size="sm" onClick={onAdvanceToNextRound}>
-        Continue to next round
-      </Button>
     </div>
   );
 }

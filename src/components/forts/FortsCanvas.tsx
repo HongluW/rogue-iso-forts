@@ -151,6 +151,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
   const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
   const { grid, gridSize, selectedTool, phase: rawPhase } = state;
   const phase = rawPhase ?? 'build';
+  const canControlMap = phase === 'build' || phase === 'repair';
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderPendingRef = useRef<number | null>(null);
@@ -189,26 +190,34 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
     return () => window.removeEventListener('resize', updateSize);
   }, []);
 
-  // WASD movement
+  // WASD movement — read phase from ref so loop always has current value
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const k = e.key.toLowerCase();
       if (['w', 'a', 's', 'd'].includes(k)) { e.preventDefault(); keysPressedRef.current.add(k); }
     };
     const handleKeyUp = (e: KeyboardEvent) => { keysPressedRef.current.delete(e.key.toLowerCase()); };
+    let rafId: number;
     const loop = () => {
-      if (phase !== 'card_draw' && keysPressedRef.current.size > 0) {
+      const p = latestStateRef.current?.phase ?? 'build';
+      const allow = p === 'build' || p === 'repair';
+      if (allow && keysPressedRef.current.size > 0) {
         const mx = (keysPressedRef.current.has('a') ? panSpeed : 0) - (keysPressedRef.current.has('d') ? panSpeed : 0);
         const my = (keysPressedRef.current.has('w') ? panSpeed : 0) - (keysPressedRef.current.has('s') ? panSpeed : 0);
         if (mx || my) setOffset(prev => ({ x: prev.x + mx, y: prev.y + my }));
       }
-      requestAnimationFrame(loop);
+      rafId = requestAnimationFrame(loop);
     };
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
-    loop();
-    return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); keysPressedRef.current.clear(); };
-  }, [phase, panSpeed]);
+    rafId = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      keysPressedRef.current.clear();
+    };
+  }, [panSpeed, latestStateRef]);
 
   // Mouse → grid helper
   const mouseToGrid = useCallback((e: React.MouseEvent | { clientX: number; clientY: number }): GridPosition | null => {
@@ -236,7 +245,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
 
   // Mouse handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (phase === 'card_draw') return;
+    if (!canControlMap) return;
     mouseButtonRef.current = e.button;
     if (e.button === 2) {
       e.preventDefault();
@@ -250,10 +259,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
       isPanningRef.current = false;
       dragBuild.onMouseDown(e);
     }
-  }, [dragBuild]);
+  }, [canControlMap, dragBuild]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (phase === 'card_draw') {
+    if (!canControlMap) {
       if (!isDragging) {
         const pos = mouseToGrid(e);
         setHoveredTile(pos ?? null);
@@ -273,10 +282,10 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
       setOffset(prev => ({ x: prev.x + dx, y: prev.y + dy }));
       setDragStart({ x: e.clientX, y: e.clientY });
     }
-  }, [isDragging, dragStart, dragBuild, mouseToGrid]);
+  }, [isDragging, dragStart, dragBuild, mouseToGrid, canControlMap]);
 
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
-    if (phase === 'card_draw') return;
+    if (!canControlMap) return;
     if (!isDragging) return;
     if (e.button === 2 || mouseButtonRef.current === 2) {
       setIsDragging(false); isPanningRef.current = false; mouseButtonRef.current = null; return;
@@ -290,11 +299,11 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
       }
     }
     setIsDragging(false); isPanningRef.current = false; mouseButtonRef.current = null;
-  }, [isDragging, selectedTool, mouseToGrid, placeAtTile, setSelectedTile, dragBuild]);
+  }, [isDragging, selectedTool, mouseToGrid, placeAtTile, setSelectedTile, dragBuild, canControlMap]);
 
   // Zoom to cursor
   const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (phase === 'card_draw') {
+    if (!canControlMap) {
       e.preventDefault();
       return;
     }
@@ -323,17 +332,18 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
 
     setZoom(nz);
     setOffset({ x: (canvasX / (dpr * nz) - sx) * nz, y: (canvasY / (dpr * nz) - sy) * nz });
-  }, [zoom, offset]);
+  }, [zoom, offset, canControlMap]);
 
   // Touch handlers
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!canControlMap) return;
     if (e.touches.length === 1) {
       const t = e.touches[0];
       touchStartRef.current = { x: t.clientX, y: t.clientY, time: Date.now() };
       setIsDragging(true); setDragStart({ x: t.clientX, y: t.clientY }); isPanningRef.current = true; mouseButtonRef.current = 2;
     }
-  }, []);
+  }, [canControlMap]);
   const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!isDragging || !touchStartRef.current || e.touches.length !== 1) return;
     const t = e.touches[0];
@@ -606,6 +616,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
     <div
       ref={containerRef}
       className="w-full h-full max-w-full max-h-full relative overflow-hidden mx-auto"
+      style={{ pointerEvents: canControlMap ? 'auto' : 'none' }}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
