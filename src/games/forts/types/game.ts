@@ -29,7 +29,11 @@ export type Tool =
   | 'build_machicolations'
   | 'build_balistraria'
   | 'build_crossbow_slit'
-  | 'build_longbow_slit';
+  | 'build_longbow_slit'
+  // Resource buildings
+  | 'build_stone_mason'
+  | 'build_carpenter'
+  | 'build_mess_hall';
 
 // =============================================================================
 // TOOL INFO
@@ -71,6 +75,9 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
   build_balistraria: { name: 'Balistraria', cost: 10, description: 'Ballista opening', category: 'walls_defense', tier: 'unlock' },
   build_crossbow_slit: { name: 'Cross bow slit', cost: 6, description: 'Crossbow opening', category: 'walls_defense', tier: 'unlock' },
   build_longbow_slit: { name: 'Longbow slit', cost: 6, description: 'Longbow opening', category: 'walls_defense', tier: 'unlock' },
+  build_stone_mason: { name: 'Stone Mason', cost: 10, description: 'Stone Mason workshop', category: 'buildings', tier: 'unlock' },
+  build_carpenter: { name: 'Carpenter', cost: 10, description: 'Carpenter workshop', category: 'buildings', tier: 'unlock' },
+  build_mess_hall: { name: 'Mess Hall', cost: 10, description: 'Mess Hall', category: 'buildings', tier: 'unlock' },
 };
 
 // =============================================================================

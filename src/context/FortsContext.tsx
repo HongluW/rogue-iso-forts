@@ -223,11 +223,13 @@ export function FortsProvider({
         }
       } else if (
         tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge' ||
-        tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit'
+        tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit' ||
+        tool === 'build_stone_mason' || tool === 'build_carpenter' || tool === 'build_mess_hall'
       ) {
-        const buildingType =
+        const buildingType: BuildingType =
           tool === 'build_tower' ? 'tower' : tool === 'build_barbican' ? 'barbican' : tool === 'build_gate' ? 'gate' : tool === 'build_bridge' ? 'bridge'
-          : tool === 'build_machicolations' ? 'machicolations' : tool === 'build_balistraria' ? 'balistraria' : tool === 'build_crossbow_slit' ? 'crossbow_slit' : 'longbow_slit';
+          : tool === 'build_machicolations' ? 'machicolations' : tool === 'build_balistraria' ? 'balistraria' : tool === 'build_crossbow_slit' ? 'crossbow_slit' : tool === 'build_longbow_slit' ? 'longbow_slit'
+          : tool === 'build_stone_mason' ? 'stone_mason' : tool === 'build_carpenter' ? 'carpenter' : 'mess_hall';
         if (tool === 'build_tower') {
           const tile = newGrid.get(key);
           if (!tile || tile.zone !== 'wall') return prev;
@@ -257,6 +259,32 @@ export function FortsProvider({
         if (tool === 'build_machicolations' || tool === 'build_balistraria' || tool === 'build_crossbow_slit' || tool === 'build_longbow_slit') {
           const tile = newGrid.get(key);
           if (!tile || tile.zone !== 'wall') return prev;
+        }
+        if (tool === 'build_stone_mason' || tool === 'build_carpenter' || tool === 'build_mess_hall') {
+          const tile = newGrid.get(key);
+          if (!tile || tile.zone === 'start') return prev;
+          if (tile.building.type !== 'grass' && tile.building.type !== 'empty') return prev;
+          const cardId = tool === 'build_stone_mason' ? 'building_stone_mason' : tool === 'build_carpenter' ? 'building_carpenter' : 'building_mess_hall';
+          const card = CARD_DEFINITIONS[cardId];
+          const woodCost = card?.woodCost ?? 0;
+          const stoneCost = card?.stoneCost ?? 0;
+          const foodCost = card?.foodCost ?? 0;
+          if (!freeBuilderMode && (prev.stats.wood < woodCost || prev.stats.stone < stoneCost || prev.stats.food < foodCost)) return prev;
+          if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
+            const stats = calculateFortStats(newGrid, prev.gridSize);
+            return {
+              ...prev,
+              grid: newGrid,
+              stats: {
+                ...prev.stats,
+                ...stats,
+                wood: freeBuilderMode ? prev.stats.wood : prev.stats.wood - woodCost,
+                stone: freeBuilderMode ? prev.stats.stone : prev.stats.stone - stoneCost,
+                food: freeBuilderMode ? prev.stats.food : prev.stats.food - foodCost,
+              },
+            };
+          }
+          return prev;
         }
         if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
           const stats = calculateFortStats(newGrid, prev.gridSize);

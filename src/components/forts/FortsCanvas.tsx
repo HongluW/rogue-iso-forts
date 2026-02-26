@@ -422,8 +422,8 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#6b7280', stroke: '#374151' }, edgeVisibility);
         }
 
-        // Building overlay: tower/barbican/gate/gatehouse/bridge + embrasure types
-        const overlayBuildingTypes = ['tower', 'barbican', 'gate', 'gatehouse', 'bridge', 'machicolations', 'balistraria', 'crossbow_slit', 'longbow_slit'] as const;
+        // Building overlay: tower/barbican/gate/gatehouse/bridge + embrasure + resource buildings
+        const overlayBuildingTypes = ['tower', 'barbican', 'gate', 'gatehouse', 'bridge', 'machicolations', 'balistraria', 'crossbow_slit', 'longbow_slit', 'stone_mason', 'carpenter', 'mess_hall'] as const;
         if (overlayBuildingTypes.includes(building.type as typeof overlayBuildingTypes[number])) {
           const colorMap: Record<string, { top: string; stroke: string }> = {
             tower: { top: '#d97706', stroke: '#b45309' },
@@ -435,6 +435,9 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
             balistraria: { top: '#4b5563', stroke: '#374151' },
             crossbow_slit: { top: '#6b7280', stroke: '#4b5563' },
             longbow_slit: { top: '#9ca3af', stroke: '#6b7280' },
+            stone_mason: { top: '#0f0f0f', stroke: '#000000' },
+            carpenter: { top: '#3d2914', stroke: '#1f140a' },
+            mess_hall: { top: '#eab308', stroke: '#ca8a04' },
           };
           const overlayColors = colorMap[building.type] ?? { top: '#6b7280', stroke: '#374151' };
           ctx.save();
@@ -517,16 +520,29 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false }:
 
       // Building-tool hover preview: light up tile under cursor (like moat highlight)
       const embrasureTools = ['build_machicolations', 'build_balistraria', 'build_crossbow_slit', 'build_longbow_slit'];
+      const resourceBuildingTools = ['build_stone_mason', 'build_carpenter', 'build_mess_hall'];
       const isBuildingTool =
         selectedTool === 'build_tower' || selectedTool === 'build_barbican' || selectedTool === 'build_gate' || selectedTool === 'build_bridge' ||
-        embrasureTools.includes(selectedTool);
+        embrasureTools.includes(selectedTool) || resourceBuildingTools.includes(selectedTool);
       if (isBuildingTool && hoveredTile) {
         const hx = hoveredTile.x;
         const hy = hoveredTile.y;
         const tile = currentGrid.get(gridToKey(hx, hy));
         let previewColor: string;
         let previewStroke: string;
-        if (selectedTool === 'build_tower') {
+        if (selectedTool === 'build_stone_mason') {
+          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          previewColor = valid ? '#0f0f0f' : '#ef4444';
+          previewStroke = valid ? '#000000' : '#dc2626';
+        } else if (selectedTool === 'build_carpenter') {
+          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          previewColor = valid ? '#3d2914' : '#ef4444';
+          previewStroke = valid ? '#1f140a' : '#dc2626';
+        } else if (selectedTool === 'build_mess_hall') {
+          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          previewColor = valid ? '#eab308' : '#ef4444';
+          previewStroke = valid ? '#ca8a04' : '#dc2626';
+        } else if (selectedTool === 'build_tower') {
           const onWall = tile?.zone === 'wall';
           const neighbors = [{ x: hx + 1, y: hy }, { x: hx - 1, y: hy }, { x: hx, y: hy + 1 }, { x: hx, y: hy - 1 }];
           let adjacentTower = false;

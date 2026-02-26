@@ -12,6 +12,9 @@ import { CARD_DEFINITIONS, type CardDefinition } from '@/games/forts/types/cards
 const MOAT_CARD_IDS = ['terrain_moat_common', 'terrain_moat_unique', 'terrain_moat_rare'] as const;
 const MOAT_CARDS: CardDefinition[] = MOAT_CARD_IDS.map((id) => CARD_DEFINITIONS[id]);
 
+const RESOURCE_BUILDING_IDS = ['building_stone_mason', 'building_carpenter', 'building_mess_hall'] as const;
+const RESOURCE_BUILDINGS: CardDefinition[] = RESOURCE_BUILDING_IDS.map((id) => CARD_DEFINITIONS[id]);
+
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
   tools: ['select', 'bulldoze', 'bulldoze_all'],
   terrain: ['zone_moat', 'zone_land'],
@@ -132,6 +135,50 @@ export function FortsSidebar({
               </div>
             </div>
           ))}
+          {/* Resources — Stone Mason, Carpenter, Mess Hall */}
+          <div className="mt-4 space-y-2">
+            <h3 className="text-white/40 text-xs uppercase tracking-wider">
+              Resources
+            </h3>
+            <div className="space-y-1">
+              {RESOURCE_BUILDINGS.map((card) => {
+                const wood = card.woodCost ?? 0;
+                const stone = card.stoneCost ?? 0;
+                const food = card.foodCost ?? 0;
+                const costParts = [
+                  wood > 0 && `🪵 ${wood}`,
+                  stone > 0 && `🪨 ${stone}`,
+                  food > 0 && `🌾 ${food}`,
+                ].filter(Boolean) as string[];
+                const canAfford =
+                  freeBuilderMode ||
+                  (stats.wood >= wood && stats.stone >= stone && stats.food >= food);
+                const tool = card.id === 'building_stone_mason' ? 'build_stone_mason' : card.id === 'building_carpenter' ? 'build_carpenter' : 'build_mess_hall';
+                const isSelected = selectedTool === tool;
+                return (
+                  <Button
+                    key={card.id}
+                    variant={isSelected ? 'default' : 'ghost'}
+                    size="sm"
+                    className={`w-full justify-start text-left ${isSelected ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                    disabled={!canAfford}
+                    onClick={() => {
+                      if (isSelected) setTool('select');
+                      else setTool(tool as Tool);
+                    }}
+                  >
+                    <div className="flex flex-col items-start w-full">
+                      <span className="text-xs font-medium">{card.name}</span>
+                      <span className="text-[11px] text-white/60">
+                        Cost: {costParts.join(', ')}
+                      </span>
+                    </div>
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Moat Cards */}
           <div className="mt-4 space-y-2">
             <h3 className="text-white/40 text-xs uppercase tracking-wider">

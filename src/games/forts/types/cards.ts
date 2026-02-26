@@ -83,6 +83,8 @@ export interface CardDefinition {
   description: string;
   /** Optional: resource costs when playing the card */
   foodCost?: number;
+  woodCost?: number;
+  stoneCost?: number;
   /** Optional: for buildings/terrain/utilities, reference a structure or effect key */
   effectKey?: string;
   /** Optional: for terrain (e.g. moat), number of blocks you can build out when this card is used */
@@ -104,6 +106,8 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description: 'Unlocks construction of a Stone Mason workshop for processing stone.',
     effectKey: 'stone_mason',
+    woodCost: 5,
+    foodCost: 5,
   },
   building_carpenter: {
     id: 'building_carpenter',
@@ -112,6 +116,8 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description: 'Unlocks construction of a Carpenter workshop for processing wood.',
     effectKey: 'carpenter',
+    stoneCost: 5,
+    foodCost: 5,
   },
   building_mess_hall: {
     id: 'building_mess_hall',
@@ -120,6 +126,8 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description: 'Unlocks construction of a Mess Hall to keep defenders fed and organized.',
     effectKey: 'mess_hall',
+    woodCost: 5,
+    stoneCost: 5,
   },
   // -------------------------------------------------------------------------
   // Buildings — rare upgrades for core buildings

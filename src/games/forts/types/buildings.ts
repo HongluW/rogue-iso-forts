@@ -22,7 +22,11 @@ export type BuildingType =
   | 'machicolations'
   | 'balistraria'
   | 'crossbow_slit'
-  | 'longbow_slit';
+  | 'longbow_slit'
+  // Resource buildings
+  | 'stone_mason'
+  | 'carpenter'
+  | 'mess_hall';
 
 // =============================================================================
 // BUILDING STATS
@@ -54,4 +58,7 @@ export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {
   balistraria: { cost: 10, defense: 2, description: 'Balistraria', tier: 'unlock' },
   crossbow_slit: { cost: 6, defense: 1, description: 'Cross bow slit', tier: 'unlock' },
   longbow_slit: { cost: 6, defense: 1, description: 'Longbow slit', tier: 'unlock' },
+  stone_mason: { cost: 10, description: 'Stone Mason workshop', tier: 'unlock' },
+  carpenter: { cost: 10, description: 'Carpenter workshop', tier: 'unlock' },
+  mess_hall: { cost: 10, description: 'Mess Hall', tier: 'unlock' },
 };
