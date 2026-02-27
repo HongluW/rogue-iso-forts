@@ -356,9 +356,37 @@ export function FortsProvider({
       } else if (tool === 'zone_wall') {
         const tile = newGrid.get(key);
         if (tile) {
+          // In normal play, drawing a wall consumes one wall block from the
+          // persistent starter pool. In Free Builder mode, walls are unlimited.
+          const currentBlocks = prev.wallBlocksAvailable ?? 0;
+          if (!freeBuilderMode) {
+            if (tile.zone === 'wall') {
+              // Already a wall here; no additional cost.
+              const stats = calculateFortStats(newGrid, prev.gridSize);
+              return {
+                ...prev,
+                grid: newGrid,
+                stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
+              };
+            }
+            if (currentBlocks <= 0) return prev;
+            tile.zone = 'wall';
+            const stats = calculateFortStats(newGrid, prev.gridSize);
+            return {
+              ...prev,
+              grid: newGrid,
+              stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
+              wallBlocksAvailable: currentBlocks - 1,
+            };
+          }
+          // Free Builder: do not consume from the pool.
           tile.zone = 'wall';
           const stats = calculateFortStats(newGrid, prev.gridSize);
-          return { ...prev, grid: newGrid, stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food } };
+          return {
+            ...prev,
+            grid: newGrid,
+            stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
+          };
         }
       } else if (
         tool === 'build_tower' || tool === 'build_barbican' || tool === 'build_gate' || tool === 'build_bridge' ||
@@ -447,6 +475,7 @@ export function FortsProvider({
       const tool = prev.selectedTool;
       let remainingFromCard = prev.remainingBuildBlocksFromCard ?? null;
       let activeCardId = prev.activeCardId ?? null;
+      let wallBlocks = prev.wallBlocksAvailable ?? 0;
 
       for (const pos of tiles) {
         const key = `${pos.x},${pos.y}`;
@@ -475,7 +504,27 @@ export function FortsProvider({
           if (tile) { tile.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false }; tile.zone = 'land'; changed = true; }
         } else if (tool === 'zone_wall') {
           const tile = newGrid.get(key);
-          if (tile) { tile.zone = 'wall'; changed = true; }
+          if (tile) {
+            if (!freeBuilderMode) {
+              if (tile.zone === 'wall') {
+                // Dragging over an existing wall is free.
+                tile.zone = 'wall';
+                changed = true;
+              } else {
+                if (wallBlocks <= 0) {
+                  // No more wall blocks to place; stop consuming.
+                  continue;
+                }
+                tile.zone = 'wall';
+                wallBlocks -= 1;
+                changed = true;
+              }
+            } else {
+              // Free Builder: unlimited walls.
+              tile.zone = 'wall';
+              changed = true;
+            }
+          }
         }
       }
 
@@ -487,6 +536,7 @@ export function FortsProvider({
         stats: { ...prev.stats, ...stats, wood: prev.stats.wood, stone: prev.stats.stone, food: prev.stats.food },
         activeCardId,
         remainingBuildBlocksFromCard: remainingFromCard,
+        wallBlocksAvailable: freeBuilderMode ? prev.wallBlocksAvailable : wallBlocks,
       };
     });
   }, [freeBuilderMode]);

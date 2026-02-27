@@ -30,11 +30,11 @@ const EMBRASURE_ITEMS: ExpandableCategoryItem[] = [
   { id: 'build_longbow_slit', label: 'Longbow slit', cost: 6 },
 ];
 
-export function FortsSidebar({ 
-  onExit, 
-  isOpen, 
-  onClose 
-}: { 
+export function FortsSidebar({
+  onExit,
+  isOpen,
+  onClose,
+}: {
   onExit?: () => void;
   isOpen: boolean;
   onClose: () => void;
@@ -44,6 +44,7 @@ export function FortsSidebar({
   const roundBonusWood = state.roundBonusWood ?? 5;
   const roundBonusStone = state.roundBonusStone ?? 5;
   const roundBonusFood = state.roundBonusFood ?? 5;
+   const wallBlocksAvailable = state.wallBlocksAvailable ?? 0;
 
   if (!isOpen) {
     return null;
@@ -113,6 +114,7 @@ export function FortsSidebar({
                 {tools.map((tool) => {
                   const toolInfo = TOOL_INFO[tool];
                   const isSelected = selectedTool === tool;
+                  const isWallTool = tool === 'zone_wall';
                   return (
                     <Button
                       key={tool}
@@ -128,8 +130,14 @@ export function FortsSidebar({
                     >
                       <div className="flex-1">
                         <div className="text-sm">{toolInfo.name}</div>
-                        {toolInfo.cost > 0 && (
-                          <div className="text-xs text-white/60">Cost: —</div>
+                        {isWallTool ? (
+                          <div className="text-xs text-white/60">
+                            {freeBuilderMode ? 'Blocks: ∞' : `Blocks left: ${wallBlocksAvailable}`}
+                          </div>
+                        ) : (
+                          toolInfo.cost > 0 && (
+                            <div className="text-xs text-white/60">Cost: —</div>
+                          )
                         )}
                       </div>
                     </Button>
@@ -138,7 +146,7 @@ export function FortsSidebar({
                 {/* Embrasure: under Wall only, collapsible panel to the right */}
                 {category === 'wall' && (
                   <ExpandableCategoryPanel
-                    title="Embrasure"
+                    title="Wall Additions"
                     items={EMBRASURE_ITEMS.map((item) => ({ ...item, disabled: false }))}
                     selectedId={selectedTool}
                     onSelectItem={(id) => setTool(id as Tool)}

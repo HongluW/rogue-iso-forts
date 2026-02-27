@@ -66,6 +66,8 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     }
   }
 
+  const baseStats = calculateFortStats(grid, size);
+
   return {
     id: `fort-${Date.now()}`,
     fortName: fortName ?? '',
@@ -75,9 +77,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     activePanel: 'none',
     speed: 1,
     stats: {
-      population: 0,
-      defense: 0,
-      capacity: 0,
+      ...baseStats,
       wood: 5,
       stone: 5,
       food: 5,
@@ -98,6 +98,8 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     roundBonusStone: 5,
     roundBonusFood: 5,
     baseHealth: DEFAULT_BASE_HEALTH,
+    // Starter pool of wall segments the player can place manually.
+    wallBlocksAvailable: 24,
   };
 }
 

@@ -152,6 +152,8 @@ export interface GameState {
   roundBonusFood?: number;
   /** Main base (start zone) health; buildings/walls will have their own health later */
   baseHealth?: number;
+  /** Persistent pool of placeable wall segments that carries across rounds. */
+  wallBlocksAvailable?: number;
 }
 
 /** Starting health for the main base (start zone). */
