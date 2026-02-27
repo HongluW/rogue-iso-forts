@@ -100,6 +100,8 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     baseHealth: DEFAULT_BASE_HEALTH,
     // Starter pool of wall segments the player can place manually.
     wallBlocksAvailable: 24,
+    // Default wall variant is a wooden palisade.
+    currentWallType: 'palisade',
   };
 }
 
@@ -132,6 +134,7 @@ export function bulldozeTile(
   if (tile.building.type === 'empty' || tile.building.type === 'moat') return false;
   tile.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false };
   tile.zone = 'none';
+  tile.wallType = undefined;
   return true;
 }
 

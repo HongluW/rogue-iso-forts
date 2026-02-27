@@ -271,6 +271,27 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     playablePhase: 'build',
     effectKey: 'land',
   },
+  // -------------------------------------------------------------------------
+  // Walls — unlock stronger wall variants (design-only for now)
+  // -------------------------------------------------------------------------
+  wall_stone_standard: {
+    id: 'wall_stone_standard',
+    name: 'Stone Wall',
+    rarity: 'common',
+    category: 'terrain',
+    description: 'Standard defensive stone wall. Unlocks construction of stone walls instead of wooden palisades.',
+    playablePhase: 'build',
+    effectKey: 'stone_wall',
+  },
+  wall_reinforced: {
+    id: 'wall_reinforced',
+    name: 'Reinforced Wall',
+    rarity: 'uncommon',
+    category: 'terrain',
+    description: 'Upgraded stone wall with higher durability. When implemented, this will further improve wall HP/defense.',
+    playablePhase: 'build',
+    effectKey: 'reinforced_wall',
+  },
   terrain_earthworks: {
     id: 'terrain_earthworks',
     name: 'Earthworks',

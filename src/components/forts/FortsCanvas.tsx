@@ -440,7 +440,17 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
         } else if (tile.zone === 'start') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#7c3aed', stroke: '#5b21b6' }, edgeVisibility);
         } else if (tile.zone === 'wall') {
-          const wallColors = building.damaged ? { top: '#7f1d1d', stroke: '#450a0a' } : { top: '#78716c', stroke: '#57534e' };
+          const wallType = tile.wallType ?? 'palisade';
+          let wallColors: { top: string; stroke: string };
+          if (building.damaged) {
+            wallColors = { top: '#7f1d1d', stroke: '#450a0a' };
+          } else if (wallType === 'palisade') {
+            wallColors = { top: '#92400e', stroke: '#78350f' }; // wooden palisade
+          } else if (wallType === 'stone') {
+            wallColors = { top: '#78716c', stroke: '#57534e' }; // standard stone wall
+          } else {
+            wallColors = { top: '#4b5563', stroke: '#1f2937' }; // reinforced stone wall
+          }
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, wallColors, edgeVisibility);
         } else if (building.type === 'grass' || building.type === 'empty') {
           drawDiamondWithEdgeStrokes(ctx, screenX, screenY, { top: '#4a7c3f', stroke: '#2d4a26' }, edgeVisibility);

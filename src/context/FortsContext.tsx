@@ -359,6 +359,7 @@ export function FortsProvider({
           // In normal play, drawing a wall consumes one wall block from the
           // persistent starter pool. In Free Builder mode, walls are unlimited.
           const currentBlocks = prev.wallBlocksAvailable ?? 0;
+          const wallType = prev.currentWallType ?? 'palisade';
           if (!freeBuilderMode) {
             if (tile.zone === 'wall') {
               // Already a wall here; no additional cost.
@@ -371,6 +372,7 @@ export function FortsProvider({
             }
             if (currentBlocks <= 0) return prev;
             tile.zone = 'wall';
+            tile.wallType = wallType;
             const stats = calculateFortStats(newGrid, prev.gridSize);
             return {
               ...prev,
@@ -381,6 +383,7 @@ export function FortsProvider({
           }
           // Free Builder: do not consume from the pool.
           tile.zone = 'wall';
+          tile.wallType = wallType;
           const stats = calculateFortStats(newGrid, prev.gridSize);
           return {
             ...prev,
@@ -505,10 +508,12 @@ export function FortsProvider({
         } else if (tool === 'zone_wall') {
           const tile = newGrid.get(key);
           if (tile) {
+            const wallType = prev.currentWallType ?? 'palisade';
             if (!freeBuilderMode) {
               if (tile.zone === 'wall') {
                 // Dragging over an existing wall is free.
                 tile.zone = 'wall';
+                if (!tile.wallType) tile.wallType = wallType;
                 changed = true;
               } else {
                 if (wallBlocks <= 0) {
@@ -516,12 +521,14 @@ export function FortsProvider({
                   continue;
                 }
                 tile.zone = 'wall';
+                tile.wallType = wallType;
                 wallBlocks -= 1;
                 changed = true;
               }
             } else {
               // Free Builder: unlimited walls.
               tile.zone = 'wall';
+              tile.wallType = wallType;
               changed = true;
             }
           }

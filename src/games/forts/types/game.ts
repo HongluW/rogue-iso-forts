@@ -85,9 +85,13 @@ export const TOOL_INFO: Record<Tool, ToolInfo> = {
 // TILE & BUILDING
 // =============================================================================
 
+export type WallType = 'palisade' | 'stone' | 'reinforced';
+
 export interface Tile {
   building: Building;
   zone: 'none' | 'moat' | 'land' | 'wall' | 'start';
+  /** Optional: wall variant when zone === 'wall' (defaults to palisade if unset). */
+  wallType?: WallType;
 }
 
 export interface Building {
@@ -152,6 +156,8 @@ export interface GameState {
   baseHealth?: number;
   /** Persistent pool of placeable wall segments that carries across rounds. */
   wallBlocksAvailable?: number;
+  /** Current wall variant used by the Wall tool. Defaults to palisade. */
+  currentWallType?: WallType;
 }
 
 /** Starting health for the main base (start zone). */
