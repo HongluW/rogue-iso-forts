@@ -8,9 +8,9 @@
 // CARD RARITY
 // =============================================================================
 
-export type CardRarity = 'common' | 'unique' | 'rare' | 'legendary';
+export type CardRarity = 'common' | 'uncommon' | 'unique' | 'rare' | 'legendary';
 
-export const CARD_RARITIES: CardRarity[] = ['common', 'unique', 'rare', 'legendary'];
+export const CARD_RARITIES: CardRarity[] = ['common', 'uncommon', 'unique', 'rare', 'legendary'];
 
 // =============================================================================
 // CARD CATEGORY
@@ -70,6 +70,13 @@ export const CARD_CATEGORIES: Record<CardCategory, CardCategoryInfo> = {
 };
 
 // =============================================================================
+// CARD PLAY PHASE (when the card can be used)
+// =============================================================================
+
+/** Phase during which this card can be played. Build-phase cards are used in the build round; defense-phase cards during the defense/siege round. */
+export type CardPlayPhase = 'build' | 'defense';
+
+// =============================================================================
 // CARD DEFINITION
 // =============================================================================
 
@@ -81,6 +88,8 @@ export interface CardDefinition {
   rarity: CardRarity;
   category: CardCategory;
   description: string;
+  /** When this card can be played: build round (place/construct) or defense round (tactical/intel effects). */
+  playablePhase: CardPlayPhase;
   /** Optional: resource costs when playing the card */
   foodCost?: number;
   woodCost?: number;
@@ -105,6 +114,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'buildings',
     description: 'Unlocks construction of a Stone Mason workshop for processing stone.',
+    playablePhase: 'build',
     effectKey: 'stone_mason',
     woodCost: 5,
     foodCost: 5,
@@ -115,6 +125,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'buildings',
     description: 'Unlocks construction of a Carpenter workshop for processing wood.',
+    playablePhase: 'build',
     effectKey: 'carpenter',
     stoneCost: 5,
     foodCost: 5,
@@ -125,6 +136,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'buildings',
     description: 'Unlocks construction of a Mess Hall to keep defenders fed and organized.',
+    playablePhase: 'build',
     effectKey: 'mess_hall',
     woodCost: 5,
     stoneCost: 5,
@@ -141,6 +153,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description:
       'Upgrade the Stone Mason. When implemented, this will increase the per-round output of stone from Stone Mason buildings.',
+    playablePhase: 'build',
     effectKey: 'upgrade_stone_mason',
   },
   building_upgrade_carpenter: {
@@ -150,6 +163,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description:
       'Upgrade the Carpenter. When implemented, this will increase the per-round output of wood from Carpenter buildings.',
+    playablePhase: 'build',
     effectKey: 'upgrade_carpenter',
   },
   building_upgrade_mess_hall: {
@@ -159,6 +173,37 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     category: 'buildings',
     description:
       'Upgrade the Mess Hall. When implemented, this will increase the per-round output of food (or morale-related food effects) from Mess Halls.',
+    playablePhase: 'build',
+    effectKey: 'upgrade_mess_hall',
+  },
+  // -------------------------------------------------------------------------
+  // Buildings — uncommon: +output per round (Stonemason+, Workshop+, Mess Hall+)
+  // -------------------------------------------------------------------------
+  upgrade_stonemason_plus: {
+    id: 'upgrade_stonemason_plus',
+    name: 'Stonemason+',
+    rarity: 'uncommon',
+    category: 'buildings',
+    description: 'Upgrade: +stone output per round from Stone Mason buildings.',
+    playablePhase: 'build',
+    effectKey: 'upgrade_stone_mason',
+  },
+  upgrade_workshop_plus: {
+    id: 'upgrade_workshop_plus',
+    name: 'Workshop+',
+    rarity: 'uncommon',
+    category: 'buildings',
+    description: 'Upgrade: +wood output per round from Carpenter workshop buildings.',
+    playablePhase: 'build',
+    effectKey: 'upgrade_carpenter',
+  },
+  upgrade_mess_hall_plus: {
+    id: 'upgrade_mess_hall_plus',
+    name: 'Mess Hall+',
+    rarity: 'uncommon',
+    category: 'buildings',
+    description: 'Upgrade: +food output per round from Mess Hall buildings.',
+    playablePhase: 'build',
     effectKey: 'upgrade_mess_hall',
   },
   // -------------------------------------------------------------------------
@@ -170,6 +215,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'terrain',
     description: 'Build out 4 moat segments. Unused segments stay for later—draw again to use the rest.',
+    playablePhase: 'build',
     foodCost: 10,
     effectKey: 'moat',
     buildBlocks: 4,
@@ -180,6 +226,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'unique',
     category: 'terrain',
     description: 'Build out 7 moat segments. Unused segments stay for later—draw again to use the rest.',
+    playablePhase: 'build',
     foodCost: 18,
     effectKey: 'moat',
     buildBlocks: 7,
@@ -190,6 +237,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'rare',
     category: 'terrain',
     description: 'Build out 10 moat segments. Unused segments stay for later—draw again to use the rest.',
+    playablePhase: 'build',
     foodCost: 25,
     effectKey: 'moat',
     buildBlocks: 10,
@@ -202,6 +250,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'rare',
     category: 'terrain',
     description: 'Create a moat directly outside the walls.',
+    playablePhase: 'build',
     effectKey: 'moat_network',
   },
   terrain_land_bridge: {
@@ -210,6 +259,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'terrain',
     description: 'Place a narrow land bridge across water or moat. Control the crossing.',
+    playablePhase: 'build',
     effectKey: 'land',
   },
   terrain_causeway: {
@@ -218,6 +268,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'rare',
     category: 'terrain',
     description: 'Raised causeway across wet ground. Single chokepoint for defenders to hold.',
+    playablePhase: 'build',
     effectKey: 'land',
   },
   terrain_earthworks: {
@@ -226,6 +277,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'terrain',
     description: 'Raise earthen berms to block line of advance and shelter defenders.',
+    playablePhase: 'build',
   },
   terrain_glacis: {
     id: 'terrain_glacis',
@@ -233,6 +285,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'unique',
     category: 'terrain',
     description: 'Sloped earthwork before walls. Exposes attackers to fire and slows assault.',
+    playablePhase: 'build',
   },
   terrain_raised_ground: {
     id: 'terrain_raised_ground',
@@ -240,6 +293,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'common',
     category: 'terrain',
     description: 'Raise a patch of ground for better sight lines or to deny cover.',
+    playablePhase: 'build',
     effectKey: 'land',
   },
   terrain_rampart_mound: {
@@ -248,6 +302,7 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     rarity: 'rare',
     category: 'terrain',
     description: 'Substantial raised mound behind the line. Command position and fallback height.',
+    playablePhase: 'build',
   },
 };
 
@@ -257,4 +312,9 @@ export function getCardsByRarity(rarity: CardRarity): CardDefinition[] {
 
 export function getCardsByCategory(category: CardCategory): CardDefinition[] {
   return Object.values(CARD_DEFINITIONS).filter((c) => c.category === category);
+}
+
+/** Returns cards that can be played during the given phase (build round or defense round). */
+export function getCardsPlayableInPhase(phase: CardPlayPhase): CardDefinition[] {
+  return Object.values(CARD_DEFINITIONS).filter((c) => c.playablePhase === phase);
 }
