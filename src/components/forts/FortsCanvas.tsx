@@ -193,8 +193,18 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
   // WASD movement — read phase from ref so loop always has current value
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      // Don't capture WASD when typing in inputs/textareas or editable elements
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+        return;
+      }
       const k = e.key.toLowerCase();
-      if (['w', 'a', 's', 'd'].includes(k)) { e.preventDefault(); keysPressedRef.current.add(k); }
+      if (!['w', 'a', 's', 'd'].includes(k)) return;
+      const p = latestStateRef.current?.phase ?? 'build';
+      const allow = p === 'build' || p === 'repair';
+      if (!allow) return;
+      e.preventDefault();
+      keysPressedRef.current.add(k);
     };
     const handleKeyUp = (e: KeyboardEvent) => { keysPressedRef.current.delete(e.key.toLowerCase()); };
     let rafId: number;
