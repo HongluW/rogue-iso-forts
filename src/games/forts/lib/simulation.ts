@@ -137,15 +137,13 @@ export function bulldozeTile(
 
 // Calculate fort stats
 export function calculateFortStats(grid: Map<string, Tile>, gridSize: number): FortStats {
-  let population = 0;
   let defense = 0;
-  let capacity = 0;
 
   for (const tile of grid.values()) {
     if (tile.zone === 'wall') defense += 1;
   }
 
-  return { population, defense, capacity, wood: 0, stone: 0, food: 0 };
+  return { defense, wood: 0, stone: 0, food: 0 };
 }
 
 // Run siege: damage some wall/defense tiles (placeholder logic)

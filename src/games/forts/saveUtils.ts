@@ -5,7 +5,6 @@ import { serializeAndCompressAsync } from '@/lib/saveWorkerManager';
 export type SavedFortMeta = {
   id: string;
   fortName: string;
-  population: number;
   defense: number;
   wood: number;
   stone: number;
@@ -25,7 +24,6 @@ export function buildSavedFortMeta(state: GameState, savedAt: number = Date.now(
   return {
     id: state.id,
     fortName: state.fortName || 'Unnamed Fort',
-    population: state.stats.population,
     defense: state.stats.defense,
     wood: state.stats.wood,
     stone: state.stats.stone,

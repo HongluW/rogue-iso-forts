@@ -104,9 +104,7 @@ export interface Building {
 // =============================================================================
 
 export interface FortStats {
-  population: number;
   defense: number;
-  capacity: number;
   wood: number;
   stone: number;
   food: number;

@@ -96,8 +96,6 @@ export function FortsSidebar({
             <span className="text-xs text-emerald-400/90" title="Per round">+{roundBonusFood}</span>
           )}
         </div>
-        <div className="text-white/60 text-xs pt-1">Population</div>
-        <div className="text-white text-lg font-semibold">{stats.population.toLocaleString()}</div>
         <div className="text-white/60 text-xs">Defense</div>
         <div className="text-white text-lg font-semibold">{stats.defense.toLocaleString()}</div>
       </div>
