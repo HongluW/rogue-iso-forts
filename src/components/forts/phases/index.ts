@@ -1,3 +1,4 @@
+export { NameEntryScene } from './NameEntryScene';
 export { CardDrawScene } from './CardDrawScene';
 export { BuildPhaseOverlay } from './BuildPhaseOverlay';
 export { DefensePhaseScene } from './DefensePhaseScene';

@@ -59,6 +59,7 @@ type FortsContextValue = {
   activeCardId: CardId | null;
   remainingBuildBlocksFromCard: number | null;
   playMoatCard: (cardId: CardId) => void;
+  advanceFromNameEntry: (fortName: string) => void;
   advanceFromCardDraw: () => void;
   advanceFromBuildTimeUp: () => void;
   advanceFromDefenseComplete: () => void;
@@ -196,6 +197,15 @@ export function FortsProvider({
     }));
   }, []);
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
+
+  const advanceFromNameEntry = useCallback((fortName: string) => {
+    const trimmed = fortName.trim() || 'Unnamed Fort';
+    setState(prev => {
+      const next = { ...prev, fortName: trimmed, phase: 'card_draw' as const };
+      queueMicrotask(() => persistFortsSave(next));
+      return next;
+    });
+  }, [persistFortsSave]);
 
   const advanceFromCardDraw = useCallback(() => {
     setState(prev => {
@@ -562,6 +572,7 @@ export function FortsProvider({
     activeCardId: state.activeCardId ?? null,
     remainingBuildBlocksFromCard: state.remainingBuildBlocksFromCard ?? null,
     playMoatCard,
+    advanceFromNameEntry,
     advanceFromCardDraw,
     advanceFromBuildTimeUp,
     advanceFromDefenseComplete,

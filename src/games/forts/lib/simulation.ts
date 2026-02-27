@@ -68,7 +68,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
 
   return {
     id: `fort-${Date.now()}`,
-    fortName: fortName || 'New Fort',
+    fortName: fortName ?? '',
     grid,
     gridSize: size,
     selectedTool: 'select',
@@ -90,7 +90,7 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     gameVersion: 4,
     activeCardId: null,
     remainingBuildBlocksFromCard: null,
-    phase: 'card_draw',
+    phase: 'name_entry',
     round: 1,
     phaseEndsAt: 0,
     damagedTiles: [],

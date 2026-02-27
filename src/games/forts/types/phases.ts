@@ -8,13 +8,14 @@
 // =============================================================================
 
 export type GamePhase =
+  | 'name_entry'  // New game only: player names their fort before first card draw
   | 'card_draw'   // Draw cards at start of round
   | 'build'       // ~3 min to build/fortify
   | 'defense'     // Siege / enemy attack
   | 'repair'      // Option to repair damaged structures
   | 'round_end';  // Brief transition before next round
 
-export const PHASE_ORDER: GamePhase[] = ['card_draw', 'build', 'defense', 'repair', 'round_end'];
+export const PHASE_ORDER: GamePhase[] = ['name_entry', 'card_draw', 'build', 'defense', 'repair', 'round_end'];
 
 // =============================================================================
 // PHASE DURATIONS (ms)

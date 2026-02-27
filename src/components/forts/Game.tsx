@@ -9,6 +9,7 @@ import { FortsSidebar } from './FortsSidebar';
 import { FortsTopBar } from './FortsTopBar';
 import { FortsStatsPanel } from './FortsStatsPanel';
 import {
+  NameEntryScene,
   CardDrawScene,
   DefensePhaseScene,
   RepairPhaseOverlay,
@@ -24,6 +25,7 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
     setTool,
     setActivePanel,
     toggleFreeBuilder,
+    advanceFromNameEntry,
     advanceFromCardDraw,
     advanceFromBuildTimeUp,
     advanceFromDefenseComplete,
@@ -157,6 +159,12 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
             setSelectedTile={setSelectedTile}
             selectedDamagedKey={phase === 'repair' ? selectedDamagedKey : null}
           />
+          {phase === 'name_entry' && (
+            <NameEntryScene
+              initialName={state.fortName ?? ''}
+              onContinue={advanceFromNameEntry}
+            />
+          )}
           {phase === 'card_draw' && (
             <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
           )}
