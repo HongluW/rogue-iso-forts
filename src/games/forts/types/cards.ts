@@ -304,6 +304,27 @@ export const CARD_DEFINITIONS: Record<CardId, CardDefinition> = {
     description: 'Substantial raised mound behind the line. Command position and fallback height.',
     playablePhase: 'build',
   },
+  // -------------------------------------------------------------------------
+  // Defense phase — tactical (playable during defense/siege)
+  // -------------------------------------------------------------------------
+  defense_boiling_oil: {
+    id: 'defense_boiling_oil',
+    name: 'Boiling Oil',
+    rarity: 'uncommon',
+    category: 'tactical',
+    description: 'One-time area burn at wall base.',
+    playablePhase: 'defense',
+    effectKey: 'boiling_oil_one_time',
+  },
+  defense_oil_cauldron: {
+    id: 'defense_oil_cauldron',
+    name: 'Oil Cauldron',
+    rarity: 'rare',
+    category: 'tactical',
+    description: 'Recharges each round.',
+    playablePhase: 'defense',
+    effectKey: 'oil_cauldron_recharge',
+  },
 };
 
 export function getCardsByRarity(rarity: CardRarity): CardDefinition[] {
