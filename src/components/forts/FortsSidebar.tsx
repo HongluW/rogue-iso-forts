@@ -10,10 +10,10 @@ import { X, LogOut } from 'lucide-react';
 import { CARD_DEFINITIONS, type CardDefinition } from '@/games/forts/types/cards';
 
 const MOAT_CARD_IDS = ['terrain_moat_common', 'terrain_moat_unique', 'terrain_moat_rare'] as const;
-const MOAT_CARDS: CardDefinition[] = MOAT_CARD_IDS.map((id) => CARD_DEFINITIONS[id]);
+const MOAT_CARDS: CardDefinition[] = MOAT_CARD_IDS.map((id) => CARD_DEFINITIONS[id]).filter(Boolean);
 
 const RESOURCE_BUILDING_IDS = ['building_stone_mason', 'building_carpenter', 'building_mess_hall'] as const;
-const RESOURCE_BUILDINGS: CardDefinition[] = RESOURCE_BUILDING_IDS.map((id) => CARD_DEFINITIONS[id]);
+const RESOURCE_BUILDINGS: CardDefinition[] = RESOURCE_BUILDING_IDS.map((id) => CARD_DEFINITIONS[id]).filter(Boolean);
 
 const TOOL_CATEGORIES: Record<string, Tool[]> = {
   tools: ['select', 'bulldoze', 'bulldoze_all'],
@@ -227,7 +227,7 @@ export function FortsSidebar({
                   </Button>
                 );
               })}
-              {activeCardId && remainingBuildBlocksFromCard !== null && (
+              {activeCardId && remainingBuildBlocksFromCard !== null && CARD_DEFINITIONS[activeCardId] && (
                 <div className="text-[11px] text-white/50 pt-1">
                   Active card: {CARD_DEFINITIONS[activeCardId].name} — Remaining segments: {remainingBuildBlocksFromCard}
                 </div>
