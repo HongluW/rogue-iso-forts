@@ -154,6 +154,10 @@ export interface GameState {
   roundBonusFood?: number;
   /** Main base (start zone) health; buildings/walls will have their own health later */
   baseHealth?: number;
+  /** Max wood/stone/food that can be held; buildings can increase these later. */
+  resourceCapWood?: number;
+  resourceCapStone?: number;
+  resourceCapFood?: number;
   /** Persistent pool of placeable wall segments that carries across rounds. */
   wallBlocksAvailable?: number;
   /** Current wall variant used by the Wall tool. Defaults to palisade. */
@@ -162,6 +166,9 @@ export interface GameState {
 
 /** Starting health for the main base (start zone). */
 export const DEFAULT_BASE_HEALTH = 500;
+
+/** Default resource storage cap per type until buildings increase it. */
+export const DEFAULT_RESOURCE_CAP = 10;
 
 // =============================================================================
 // DRAG-BUILD TOOLS

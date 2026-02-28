@@ -1,5 +1,5 @@
 import { compressToUTF16, decompressFromUTF16 } from 'lz-string';
-import { GameState, Tile } from './types';
+import { GameState, Tile, DEFAULT_RESOURCE_CAP } from './types';
 import { serializeAndCompressAsync } from '@/lib/saveWorkerManager';
 
 export type SavedFortMeta = {
@@ -143,10 +143,23 @@ export function loadFortsStateFromStorage(key: string): GameState | null {
         delete stats.income;
         delete stats.expenses;
       }
+      const capW = parsed.resourceCapWood ?? DEFAULT_RESOURCE_CAP;
+      const capS = parsed.resourceCapStone ?? DEFAULT_RESOURCE_CAP;
+      const capF = parsed.resourceCapFood ?? DEFAULT_RESOURCE_CAP;
+      const clampedStats = {
+        ...parsed.stats,
+        ...stats,
+        wood: Math.min(stats.wood ?? 0, capW),
+        stone: Math.min(stats.stone ?? 0, capS),
+        food: Math.min(stats.food ?? 0, capF),
+      };
       return {
         ...parsed,
         grid,
-        stats: { ...parsed.stats, ...stats },
+        stats: clampedStats,
+        resourceCapWood: capW,
+        resourceCapStone: capS,
+        resourceCapFood: capF,
       } as GameState;
     }
   } catch {

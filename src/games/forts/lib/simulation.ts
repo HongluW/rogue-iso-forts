@@ -2,7 +2,7 @@
  * Forts Simulation Logic
  */
 
-import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS, DEFAULT_BASE_HEALTH } from '../types';
+import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS, DEFAULT_BASE_HEALTH, DEFAULT_RESOURCE_CAP } from '../types';
 import { isMobile } from 'react-device-detect';
 import { gridToKey } from './gridUtils';
 
@@ -98,6 +98,9 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     roundBonusStone: 5,
     roundBonusFood: 5,
     baseHealth: DEFAULT_BASE_HEALTH,
+    resourceCapWood: DEFAULT_RESOURCE_CAP,
+    resourceCapStone: DEFAULT_RESOURCE_CAP,
+    resourceCapFood: DEFAULT_RESOURCE_CAP,
     // Starter pool of wall segments the player can place manually.
     wallBlocksAvailable: 24,
     // Default wall variant is a wooden palisade.

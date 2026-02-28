@@ -10,6 +10,7 @@ import {
   TOOL_INFO,
   GridPosition,
   CardId,
+  DEFAULT_RESOURCE_CAP,
 } from '@/games/forts/types';
 import {
   createInitialGameState,
@@ -242,6 +243,9 @@ export function FortsProvider({
         const wood = s.roundBonusWood ?? 5;
         const stone = s.roundBonusStone ?? 5;
         const food = s.roundBonusFood ?? 5;
+        const capW = s.resourceCapWood ?? DEFAULT_RESOURCE_CAP;
+        const capS = s.resourceCapStone ?? DEFAULT_RESOURCE_CAP;
+        const capF = s.resourceCapFood ?? DEFAULT_RESOURCE_CAP;
         return {
           ...s,
           phase: 'card_draw',
@@ -249,9 +253,9 @@ export function FortsProvider({
           damagedTiles: [],
           stats: {
             ...s.stats,
-            wood: s.stats.wood + wood,
-            stone: s.stats.stone + stone,
-            food: s.stats.food + food,
+            wood: Math.min(s.stats.wood + wood, capW),
+            stone: Math.min(s.stats.stone + stone, capS),
+            food: Math.min(s.stats.food + food, capF),
           },
         };
       });
@@ -590,15 +594,20 @@ export function FortsProvider({
   }, []);
 
   const addResources = useCallback((amounts: { wood?: number; stone?: number; food?: number }) => {
-    setState(prev => ({
-      ...prev,
-      stats: {
-        ...prev.stats,
-        wood: prev.stats.wood + (amounts.wood ?? 0),
-        stone: prev.stats.stone + (amounts.stone ?? 0),
-        food: prev.stats.food + (amounts.food ?? 0),
-      },
-    }));
+    setState(prev => {
+      const capW = prev.resourceCapWood ?? DEFAULT_RESOURCE_CAP;
+      const capS = prev.resourceCapStone ?? DEFAULT_RESOURCE_CAP;
+      const capF = prev.resourceCapFood ?? DEFAULT_RESOURCE_CAP;
+      return {
+        ...prev,
+        stats: {
+          ...prev.stats,
+          wood: Math.min(prev.stats.wood + (amounts.wood ?? 0), capW),
+          stone: Math.min(prev.stats.stone + (amounts.stone ?? 0), capS),
+          food: Math.min(prev.stats.food + (amounts.food ?? 0), capF),
+        },
+      };
+    });
   }, []);
 
   const toggleFreeBuilder = useCallback(() => {
