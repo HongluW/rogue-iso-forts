@@ -16,7 +16,7 @@ import {
   RoundEndOverlay,
 } from './phases';
 import { Button } from '@/components/ui/button';
-import { Menu } from 'lucide-react';
+import { Menu, Layers } from 'lucide-react';
 import { REPAIR_COST_WOOD, REPAIR_COST_STONE } from '@/games/forts/types/phases';
 
 export default function FortsGame({ onExit }: { onExit?: () => void }) {
@@ -33,6 +33,8 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
     repairTile,
     selectedDamagedKey,
     setSelectedDamagedKey,
+    showUnderground,
+    setShowUnderground,
   } = useForts();
   const [selectedTile, setSelectedTile] = useState<GridPosition | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -87,25 +89,32 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
           {phase === 'card_draw' && (
             <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
           )}
-          {phase === 'build' && (
-            <Button
-              onClick={advanceFromBuildTimeUp}
-              className="absolute top-4 right-4 z-40"
-            >
-              Ready
-            </Button>
+          {(phase === 'build' || phase === 'repair') && (
+            <div className="absolute top-4 right-4 z-40 flex flex-col gap-2 items-end">
+              {phase === 'build' && (
+                <Button onClick={advanceFromBuildTimeUp}>Ready</Button>
+              )}
+              {phase === 'repair' && (
+                <Button onClick={advanceFromRepairToNextRound}>Continue to next round</Button>
+              )}
+              <Button
+                onClick={() => setShowUnderground(!showUnderground)}
+                variant={showUnderground ? 'default' : 'outline'}
+                size="sm"
+                className="flex items-center gap-2"
+                title={showUnderground ? 'Show surface layer' : 'Show underground layer'}
+              >
+                <Layers className="w-4 h-4" />
+                Underground
+                {showUnderground && <span className="text-xs">ON</span>}
+              </Button>
+            </div>
           )}
           {phase === 'defense' && (
             <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
           )}
           {phase === 'repair' && (
             <>
-              <Button
-                onClick={advanceFromRepairToNextRound}
-                className="absolute top-4 right-4 z-40"
-              >
-                Continue to next round
-              </Button>
               <RepairPhaseOverlay
                 damagedCount={damagedTiles.length}
                 onRepairTile={repairTile}
@@ -154,6 +163,27 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
         <FortsTopBar />
         <FortsStatsPanel />
         <div className="flex-1 relative overflow-hidden flex items-center justify-center">
+          {(phase === 'build' || phase === 'repair') && (
+            <div className="absolute top-4 right-4 z-50 flex flex-col gap-2 items-end">
+              {phase === 'build' && (
+                <Button onClick={advanceFromBuildTimeUp}>Ready</Button>
+              )}
+              {phase === 'repair' && (
+                <Button onClick={advanceFromRepairToNextRound}>Continue to next round</Button>
+              )}
+              <Button
+                onClick={() => setShowUnderground(!showUnderground)}
+                variant={showUnderground ? 'default' : 'outline'}
+                size="sm"
+                className="flex items-center gap-2"
+                title={showUnderground ? 'Show surface layer' : 'Show underground layer'}
+              >
+                <Layers className="w-4 h-4" />
+                Underground
+                {showUnderground && <span className="text-xs">ON</span>}
+              </Button>
+            </div>
+          )}
           <FortsCanvas
             selectedTile={selectedTile}
             setSelectedTile={setSelectedTile}
@@ -168,25 +198,11 @@ export default function FortsGame({ onExit }: { onExit?: () => void }) {
           {phase === 'card_draw' && (
             <CardDrawScene round={round} onAdvance={advanceFromCardDraw} />
           )}
-          {phase === 'build' && (
-            <Button
-              onClick={advanceFromBuildTimeUp}
-              className="absolute top-4 right-4 z-40"
-            >
-              Ready
-            </Button>
-          )}
           {phase === 'defense' && (
             <DefensePhaseScene round={round} onSiegeComplete={advanceFromDefenseComplete} />
           )}
           {phase === 'repair' && (
             <>
-              <Button
-                onClick={advanceFromRepairToNextRound}
-                className="absolute top-4 right-4 z-40"
-              >
-                Continue to next round
-              </Button>
               <RepairPhaseOverlay
                 damagedCount={damagedTiles.length}
                 onRepairTile={repairTile}

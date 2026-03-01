@@ -41,6 +41,8 @@ export interface BuildingStats {
   description: string;
   size?: { width: number; height: number };
   tier: BuildingTier;
+  /** If true, this building can be placed underground (e.g. resource buildings). */
+  undergroundAllowed?: boolean;
 }
 
 export const BUILDING_STATS: Record<BuildingType, BuildingStats> = {

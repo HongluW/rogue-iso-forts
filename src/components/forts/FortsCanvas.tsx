@@ -13,6 +13,7 @@ import {
 import { useDragBuild } from '@/hooks/useDragBuild';
 import { getSpriteCoords, getActiveSpritePack } from '@/lib/renderConfig';
 import { getFortsBuildingSprite } from '@/games/forts/lib/renderConfig';
+import { getFortBuildableKeys } from '@/games/forts/lib/fortBoundary';
 
 // Draw isometric diamond tile
 function drawDiamond(
@@ -149,7 +150,8 @@ interface FortsCanvasProps {
 
 export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, selectedDamagedKey = null }: FortsCanvasProps) {
   const { state, latestStateRef, placeAtTile, placeMultipleTiles } = useForts();
-  const { grid, gridSize, selectedTool, phase: rawPhase } = state;
+  const { grid, gridSize, selectedTool, phase: rawPhase, showUnderground: rawShowUnderground } = state;
+  const showUnderground = rawShowUnderground ?? false;
   const phase = rawPhase ?? 'build';
   const canControlMap = phase === 'build' || phase === 'repair';
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -427,6 +429,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
           ? dragBuild.dragBuildPreview.map((p) => gridToKey(p.x, p.y))
           : []
       );
+      const floorOpacity = showUnderground ? 0.35 : 1;
       type RI = { x: number; y: number; tile: Tile; depth: number };
       const rq: RI[] = [];
 
@@ -442,6 +445,12 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
         const { screenX, screenY } = gridToScreen(x, y);
         const building = tile.building;
         const isSelected = selectedTile?.x === x && selectedTile?.y === y;
+
+        // In underground view: fade floor tiles
+        if (showUnderground && floorOpacity < 1) {
+          ctx.save();
+          ctx.globalAlpha = floorOpacity;
+        }
 
         // Base tile color (bottom layer: wall, grass, moat, etc. so system retains "built on wall")
         const edgeVisibility = getMoatEdgeVisibility(x, y, gridSize, currentGrid, moatPreviewSet);
@@ -513,6 +522,33 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
           }
         }
 
+        if (showUnderground && floorOpacity < 1) ctx.restore();
+
+        // Underground buildings (full opacity when in underground view)
+        const underground = tile.undergroundBuilding;
+        if (showUnderground && underground && underground.type !== 'empty' && underground.type !== 'grass') {
+          const undergroundColorMap: Record<string, { top: string; stroke: string }> = {
+            stone_mason: { top: '#2d2d2d', stroke: '#1a1a1a' },
+            carpenter: { top: '#4a3520', stroke: '#2d2014' },
+            mess_hall: { top: '#c9a227', stroke: '#a67c1a' },
+          };
+          const colors = undergroundColorMap[underground.type] ?? { top: '#6b7280', stroke: '#374151' };
+          drawDiamondWithEdgeStrokes(ctx, screenX, screenY, colors, edgeVisibility);
+          const spriteKey = getFortsBuildingSprite(underground.type);
+          if (spriteKey) {
+            const spriteImage = getCachedImage(spritePack.src);
+            if (spriteImage) {
+              const coords = getSpriteCoords(spriteKey, spriteImage.width, spriteImage.height, spritePack);
+              if (coords) {
+                ctx.save();
+                ctx.globalAlpha = underground.constructionProgress < 100 ? 0.5 : 0.9;
+                ctx.drawImage(spriteImage, coords.sx, coords.sy, coords.sw, coords.sh, screenX - coords.sw / 2, screenY - coords.sh / 2, coords.sw, coords.sh);
+                ctx.restore();
+              }
+            }
+          }
+        }
+
         // Selection highlight (normal or repair)
         const isSelectedForRepair = selectedDamagedKey === gridToKey(x, y);
         if (isSelected || isSelectedForRepair) {
@@ -574,22 +610,30 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
       const isBuildingTool =
         selectedTool === 'build_tower' || selectedTool === 'build_barbican' || selectedTool === 'build_gate' || selectedTool === 'build_bridge' ||
         embrasureTools.includes(selectedTool) || resourceBuildingTools.includes(selectedTool);
+      const fortBuildableKeys = showUnderground ? getFortBuildableKeys(currentGrid, gridSize) : null;
       if (isBuildingTool && hoveredTile) {
         const hx = hoveredTile.x;
         const hy = hoveredTile.y;
         const tile = currentGrid.get(gridToKey(hx, hy));
+        const keyStr = gridToKey(hx, hy);
         let previewColor: string;
         let previewStroke: string;
         if (selectedTool === 'build_stone_mason') {
-          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          const valid = showUnderground
+            ? (tile && fortBuildableKeys?.has(keyStr) && (!tile.undergroundBuilding || tile.undergroundBuilding.type === 'empty' || tile.undergroundBuilding.type === 'grass'))
+            : (tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty'));
           previewColor = valid ? '#0f0f0f' : '#ef4444';
           previewStroke = valid ? '#000000' : '#dc2626';
         } else if (selectedTool === 'build_carpenter') {
-          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          const valid = showUnderground
+            ? (tile && fortBuildableKeys?.has(keyStr) && (!tile.undergroundBuilding || tile.undergroundBuilding.type === 'empty' || tile.undergroundBuilding.type === 'grass'))
+            : (tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty'));
           previewColor = valid ? '#3d2914' : '#ef4444';
           previewStroke = valid ? '#1f140a' : '#dc2626';
         } else if (selectedTool === 'build_mess_hall') {
-          const valid = tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty');
+          const valid = showUnderground
+            ? (tile && fortBuildableKeys?.has(keyStr) && (!tile.undergroundBuilding || tile.undergroundBuilding.type === 'empty' || tile.undergroundBuilding.type === 'grass'))
+            : (tile && tile.zone !== 'start' && (tile.building.type === 'grass' || tile.building.type === 'empty'));
           previewColor = valid ? '#eab308' : '#ef4444';
           previewStroke = valid ? '#ca8a04' : '#dc2626';
         } else if (selectedTool === 'build_tower') {
@@ -630,7 +674,7 @@ export function FortsCanvas({ selectedTile, setSelectedTile, isMobile = false, s
       ctx.restore();
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool, hoveredTile]);
+  }, [grid, gridSize, selectedTile, offset, zoom, spritePack, imagesLoaded, dragBuild.dragBuildPreview, selectedTool, hoveredTile, showUnderground]);
 
   return (
     <div

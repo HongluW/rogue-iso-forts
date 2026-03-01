@@ -15,12 +15,15 @@ import {
 import {
   createInitialGameState,
   placeBuilding,
+  placeUndergroundBuilding,
   bulldozeTile,
   calculateFortStats,
   runSiegeDamage,
   repairTile as repairTileSim,
 } from '@/games/forts/lib/simulation';
+import { getFortBuildableKeys } from '@/games/forts/lib/fortBoundary';
 import { CARD_DEFINITIONS } from '@/games/forts/types/cards';
+import { BUILDING_STATS } from '@/games/forts/types/buildings';
 import {
   BUILD_PHASE_DURATION_MS,
   ROUND_END_DURATION_MS,
@@ -68,6 +71,8 @@ type FortsContextValue = {
   repairTile: (key: string) => void;
   selectedDamagedKey: string | null;
   setSelectedDamagedKey: (key: string | null) => void;
+  showUnderground: boolean;
+  setShowUnderground: (show: boolean) => void;
 };
 
 const FortsContext = createContext<FortsContextValue | null>(null);
@@ -187,17 +192,38 @@ export function FortsProvider({
     };
   }, [isStateReady, persistFortsSave]);
 
+  // Tools that can place underground (derived from BuildingStats.undergroundAllowed)
+  const UNDERGROUND_TOOLS: Tool[] = (
+    [
+      ['build_stone_mason', 'stone_mason'],
+      ['build_carpenter', 'carpenter'],
+      ['build_mess_hall', 'mess_hall'],
+    ] as const
+  )
+    .filter(([, type]) => BUILDING_STATS[type]?.undergroundAllowed)
+    .map(([t]) => t as Tool);
+
   const setTool = useCallback((tool: Tool) => {
-    setState(prev => ({
-      ...prev,
-      selectedTool: tool,
-      // When switching away from terrain tools, clear any active card effects
-      ...(tool !== 'zone_moat'
-        ? { activeCardId: null, remainingBuildBlocksFromCard: null }
-        : {}),
-    }));
+    setState(prev => {
+      const next = {
+        ...prev,
+        selectedTool: tool,
+        // When switching away from terrain tools, clear any active card effects
+        ...(tool !== 'zone_moat'
+          ? { activeCardId: null, remainingBuildBlocksFromCard: null }
+          : {}),
+      };
+      // Auto-switch to underground view when selecting an underground-allowed building
+      if (UNDERGROUND_TOOLS.includes(tool)) {
+        return { ...next, showUnderground: true };
+      }
+      return next;
+    });
   }, []);
   const setActivePanel = useCallback((panel: GameState['activePanel']) => { setState(prev => ({ ...prev, activePanel: panel })); }, []);
+  const setShowUnderground = useCallback((show: boolean) => {
+    setState(prev => ({ ...prev, showUnderground: show }));
+  }, []);
 
   const advanceFromNameEntry = useCallback((fortName: string) => {
     const trimmed = fortName.trim() || 'Unnamed Fort';
@@ -436,15 +462,30 @@ export function FortsProvider({
         }
         if (tool === 'build_stone_mason' || tool === 'build_carpenter' || tool === 'build_mess_hall') {
           const tile = newGrid.get(key);
-          if (!tile || tile.zone === 'start') return prev;
-          if (tile.building.type !== 'grass' && tile.building.type !== 'empty') return prev;
+          if (!tile) return prev;
+          const isUnderground = (prev.showUnderground ?? false) && UNDERGROUND_TOOLS.includes(tool);
+          const fortBuildable = getFortBuildableKeys(newGrid, prev.gridSize);
+          const keyStr = `${x},${y}`;
+          if (isUnderground) {
+            // Underground: must be within fort boundary; place in underground layer
+            if (!fortBuildable.has(keyStr)) return prev;
+            const existing = tile.undergroundBuilding;
+            if (existing && existing.type !== 'empty' && existing.type !== 'grass') return prev;
+          } else {
+            // Surface: existing validation (not start, grass/empty)
+            if (tile.zone === 'start') return prev;
+            if (tile.building.type !== 'grass' && tile.building.type !== 'empty') return prev;
+          }
           const cardId = tool === 'build_stone_mason' ? 'building_stone_mason' : tool === 'build_carpenter' ? 'building_carpenter' : 'building_mess_hall';
           const card = CARD_DEFINITIONS[cardId];
           const woodCost = card?.woodCost ?? 0;
           const stoneCost = card?.stoneCost ?? 0;
           const foodCost = card?.foodCost ?? 0;
           if (!freeBuilderMode && (prev.stats.wood < woodCost || prev.stats.stone < stoneCost || prev.stats.food < foodCost)) return prev;
-          if (placeBuilding(newGrid, prev.gridSize, x, y, buildingType)) {
+          const placed = isUnderground
+            ? placeUndergroundBuilding(newGrid, prev.gridSize, x, y, buildingType)
+            : placeBuilding(newGrid, prev.gridSize, x, y, buildingType);
+          if (placed) {
             const stats = calculateFortStats(newGrid, prev.gridSize);
             return {
               ...prev,
@@ -646,6 +687,8 @@ export function FortsProvider({
     repairTile,
     selectedDamagedKey,
     setSelectedDamagedKey,
+    showUnderground: state.showUnderground ?? false,
+    setShowUnderground,
   };
 
   return <FortsContext.Provider value={value}>{children}</FortsContext.Provider>;

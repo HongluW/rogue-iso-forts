@@ -92,6 +92,8 @@ export interface Tile {
   zone: 'none' | 'moat' | 'land' | 'wall' | 'start';
   /** Optional: wall variant when zone === 'wall' (defaults to palisade if unset). */
   wallType?: WallType;
+  /** Optional: underground building (e.g. resource buildings placed below ground). */
+  undergroundBuilding?: Building;
 }
 
 export interface Building {
@@ -162,6 +164,8 @@ export interface GameState {
   wallBlocksAvailable?: number;
   /** Current wall variant used by the Wall tool. Defaults to palisade. */
   currentWallType?: WallType;
+  /** When true, canvas shows underground layer and underground tools place below ground. */
+  showUnderground?: boolean;
 }
 
 /** Starting health for the main base (start zone). */

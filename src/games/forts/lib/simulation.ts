@@ -105,10 +105,11 @@ export function createInitialGameState(fortName?: string, gridSize?: number): Ga
     wallBlocksAvailable: 24,
     // Default wall variant is a wooden palisade.
     currentWallType: 'palisade',
+    showUnderground: false,
   };
 }
 
-// Place building at tile
+// Place building at tile (surface)
 export function placeBuilding(
   grid: Map<string, Tile>,
   gridSize: number,
@@ -124,7 +125,23 @@ export function placeBuilding(
   return true;
 }
 
-// Bulldoze tile
+// Place underground building at tile
+export function placeUndergroundBuilding(
+  grid: Map<string, Tile>,
+  gridSize: number,
+  x: number,
+  y: number,
+  buildingType: BuildingType
+): boolean {
+  const key = gridToKey(x, y);
+  const tile = grid.get(key);
+  if (!tile) return false;
+  if (tile.undergroundBuilding && tile.undergroundBuilding.type !== 'empty' && tile.undergroundBuilding.type !== 'grass') return false;
+  tile.undergroundBuilding = { type: buildingType, constructionProgress: 0, powered: false, watered: false };
+  return true;
+}
+
+// Bulldoze tile (clears both surface and underground)
 export function bulldozeTile(
   grid: Map<string, Tile>,
   gridSize: number,
@@ -138,6 +155,9 @@ export function bulldozeTile(
   tile.building = { type: 'grass', constructionProgress: 100, powered: false, watered: false };
   tile.zone = 'none';
   tile.wallType = undefined;
+  if (tile.undergroundBuilding) {
+    tile.undergroundBuilding = { type: 'empty', constructionProgress: 100, powered: false, watered: false };
+  }
   return true;
 }
 
