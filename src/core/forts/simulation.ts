@@ -1,10 +1,19 @@
 /**
- * Forts Simulation Logic
+ * Core Forts gameplay mechanisms: state creation, placement, bulldoze,
+ * stats, siege damage, repair, and tick simulation.
  */
 
-import { GameState, Tile, Building, BuildingType, Tool, FortStats, BUILDING_STATS, DEFAULT_BASE_HEALTH, DEFAULT_RESOURCE_CAP } from '../types';
+import {
+  GameState,
+  Tile,
+  Building,
+  BuildingType,
+  FortStats,
+  DEFAULT_BASE_HEALTH,
+  DEFAULT_RESOURCE_CAP,
+} from '@/games/forts/types';
+import { gridToKey } from '@/games/forts/lib/gridUtils';
 import { isMobile } from 'react-device-detect';
-import { gridToKey } from './gridUtils';
 
 export const DEFAULT_GRID_SIZE = isMobile ? 16 : 24;
 

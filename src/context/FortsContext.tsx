@@ -20,7 +20,7 @@ import {
   calculateFortStats,
   runSiegeDamage,
   repairTile as repairTileSim,
-} from '@/games/forts/lib/simulation';
+} from '@/core/forts';
 import { getFortBuildableKeys } from '@/games/forts/lib/fortBoundary';
 import { CARD_DEFINITIONS } from '@/games/forts/types/cards';
 import { BUILDING_STATS } from '@/games/forts/types/buildings';
